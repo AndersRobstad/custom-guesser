@@ -62,7 +62,7 @@
 			<span class="sr-only">Årstall ({min}–{max})</span>
 			<span
 				aria-hidden="true"
-				class="pointer-events-none absolute inset-0 grid place-items-center text-5xl font-bold text-stamp-ghost italic"
+				class="pointer-events-none absolute inset-0 grid place-items-center text-5xl font-bold text-stamp-ghost italic [@media(max-height:700px)]:text-4xl"
 				style="font-family: var(--font-stamp)">8888</span
 			>
 			<input
@@ -95,7 +95,7 @@
 					}
 				}}
 				class={cn(
-					'relative w-full bg-transparent text-center text-5xl font-bold text-stamp italic caret-stamp',
+					'relative w-full bg-transparent text-center text-5xl font-bold text-stamp italic caret-stamp [@media(max-height:700px)]:text-4xl',
 					'[text-shadow:0_0_0.35em_var(--glimt-stamp-glow)] focus:outline-none',
 					'rounded-sm focus-visible:ring-2 focus-visible:ring-stamp/60',
 					invalidDraft && 'text-danger'

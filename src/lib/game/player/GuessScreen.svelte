@@ -69,11 +69,11 @@
 		media={round}
 		mode="on-demand"
 		alt="Bildet du skal gjette på"
-		class="h-[28dvh] shrink-0 lg:row-span-2 lg:h-auto"
+		class="h-[28dvh] shrink-0 lg:row-span-2 lg:h-auto [@media(max-height:700px)]:h-[22dvh]"
 		onzoom={() => (zoomOpen = true)}
 	/>
 
-	<div class="relative min-h-44 flex-1 overflow-hidden rounded-md ring-1 ring-line">
+	<div class="relative min-h-36 flex-1 overflow-hidden rounded-md ring-1 ring-line">
 		<MapView
 			pickable={!sending}
 			onpick={(p) => (pin = p)}
@@ -95,7 +95,9 @@
 		{/if}
 	</div>
 
-	<div class="flex shrink-0 flex-col gap-3 rounded-lg bg-surface p-3 ring-1 ring-line ring-inset">
+	<div
+		class="flex shrink-0 flex-col gap-3 rounded-lg bg-surface p-3 ring-1 ring-line ring-inset [@media(max-height:700px)]:gap-2"
+	>
 		<YearPicker
 			bind:value={year}
 			min={data.session.yearMin}
@@ -105,6 +107,7 @@
 		<Button
 			size="lg"
 			block
+			class="[@media(max-height:700px)]:h-12"
 			disabled={!ready || timeUp}
 			loading={sending}
 			onclick={submit}

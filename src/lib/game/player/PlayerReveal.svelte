@@ -21,11 +21,17 @@
 	<div class="flex items-center justify-between gap-4 px-2">
 		<div class="flex min-w-0 flex-col">
 			<span class="text-sm text-muted">Fasit</span>
-			<span class="truncate text-xl font-bold" data-testid="answer-label"
+			<span class="line-clamp-2 text-xl leading-tight font-bold" data-testid="answer-label"
 				>{answer.label ?? 'Se kartet'}</span
 			>
 		</div>
-		<DateStamp value={answer.year} size="lg" animate label="Riktig år: {answer.year}" />
+		<DateStamp
+			value={answer.year}
+			size="lg"
+			animate
+			label="Riktig år: {answer.year}"
+			class="shrink-0 text-4xl sm:text-5xl"
+		/>
 	</div>
 	{#if answer.caption}
 		<p class="px-2 text-muted">{answer.caption}</p>
