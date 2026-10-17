@@ -116,7 +116,10 @@ async function guess(page: Page, x: number, y: number, year: number): Promise<Gu
 	const lat = Number(await map.getAttribute('data-pin-lat'));
 	const lng = Number(await map.getAttribute('data-pin-lng'));
 	await page.getByTestId('submit-guess').click();
-	await expect(page.getByTestId('guess-submitted')).toBeVisible();
+	// The last answer reveals the round immediately, so either screen means "sent".
+	await expect(
+		page.getByTestId('guess-submitted').or(page.getByTestId('player-reveal'))
+	).toBeVisible();
 	return { lat, lng, year };
 }
 
