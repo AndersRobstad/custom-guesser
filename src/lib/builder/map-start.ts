@@ -13,6 +13,7 @@ const EUROPE: MapStart = { center: { lat: 52, lng: 12 }, zoom: 4, pinZoom: 6 };
 
 const VIEWS: Record<ScoringPresetKey, MapStart> = {
 	city: { center: { lat: 61, lng: 10 }, zoom: 5, pinZoom: 13 },
+	region: { center: { lat: 63, lng: 10.5 }, zoom: 5, pinZoom: 11 },
 	norway: { center: { lat: 64.5, lng: 14 }, zoom: 4, pinZoom: 9 },
 	europe: EUROPE,
 	world: { center: { lat: 25, lng: 10 }, zoom: 2, pinZoom: 5 },

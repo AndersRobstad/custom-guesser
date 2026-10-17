@@ -3,6 +3,7 @@ import { v } from 'convex/values';
 export const scoringValidator = v.object({
 	preset: v.union(
 		v.literal('city'),
+		v.literal('region'),
 		v.literal('norway'),
 		v.literal('europe'),
 		v.literal('world'),

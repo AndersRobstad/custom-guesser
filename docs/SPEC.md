@@ -198,3 +198,13 @@ vert-fane og to «mobil»-faner som deltakere.
 - Innstillingen **«Tilfeldig rekkefølge hver gang»** (`settings.shuffleRounds`, av som standard)
   stokker rundene på nytt for hver økt. Stokkingen skjer på serveren når økten opprettes og lagres
   i øktens `roundIds`, så alle spillerne får nøyaktig samme rekkefølge.
+
+### 8. Justerbart poengoppsett
+
+- Nytt kartområde **«Landsdel»** (`perfectKm` 0,5, `kKm` 30) mellom By og Norge, for spill der alle
+  bildene er fra én region. Bom på 10 km gir 3 643, 25 km gir 2 210 og 50 km gir 960 poeng.
+- Verten velger hvor strengt årstallet teller: **Snill / Normal / Streng** (`kYear` 8 / 4 / 2,
+  Normal er standard). Med Streng gir 1 års bom 3 033 og 2 år 1 839 poeng.
+- Spillbyggeren viser en live tabell over hva typiske bom gir med valgt oppsett.
+- Anbefalt for «Hvor og når er Anders» (bilder fra hele Norge, år som er lette å gjette):
+  Kartområde **Norge** og Årstall **Streng**.

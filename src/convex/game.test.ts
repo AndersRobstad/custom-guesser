@@ -934,3 +934,31 @@ describe('round order', () => {
 		expect((await getSession(t, sessionId))?.roundIds).toEqual(order);
 	});
 });
+
+describe('scoring settings', () => {
+	it('accepts the Landsdel preset with strict years and scores sessions with them', async () => {
+		const t = setup();
+		const { gameId } = await createGame(t, { rounds: 1 });
+		const game = await t.query(api.games.get, { gameId, clientId: HOST });
+		const scoring = { preset: 'region' as const, perfectKm: 0.5, kKm: 30, kYear: 2 };
+		await t.mutation(api.games.update, {
+			gameId,
+			clientId: HOST,
+			settings: { ...game!.game.settings, scoring }
+		});
+		const { sessionId, code } = await t.mutation(api.sessions.create, { gameId, clientId: HOST });
+		await join(t, code, 'p1', 'Kari');
+		await t.mutation(api.sessions.start, { sessionId, clientId: HOST });
+		const g = { lat: ROUNDS[0].answerLat + 0.09, lng: ROUNDS[0].answerLng, year: 2005 };
+		await guess(t, sessionId, 'p1', 0, g);
+		const answer = {
+			lat: ROUNDS[0].answerLat,
+			lng: ROUNDS[0].answerLng,
+			year: ROUNDS[0].answerYear
+		};
+		const [player] = await getPlayers(t, sessionId);
+		expect(player.totalScore).toBe(scoreGuess(g, answer, scoring).total);
+		// One year off under "Streng" costs about 2 000 points.
+		expect(scoreGuess(g, answer, scoring).yearScore).toBe(3033);
+	});
+});

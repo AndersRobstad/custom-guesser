@@ -7,7 +7,16 @@
 		type GameSettings,
 		type ScoringPresetKey
 	} from '$lib/game';
-	import { MAX_SCORE, PRESETS, locationScore, type PresetKey } from '$lib/scoring';
+	import {
+		MAX_SCORE,
+		PRESETS,
+		YEAR_STRICTNESS,
+		locationScore,
+		yearScore,
+		yearStrictnessFor,
+		type PresetKey,
+		type YearStrictness
+	} from '$lib/scoring';
 	import { Field, Input, Panel, Segmented, Switch, cn, inputVariants } from '$lib/ui';
 	import { formatDistance, formatNumber, formatSeconds } from './format';
 	import type { BuilderSettings } from './types';
@@ -21,14 +30,22 @@
 		onsave: (next: GameSettings) => Promise<boolean>;
 	} = $props();
 
-	/** Two sample misses per preset, chosen so both give a telling score. */
-	const SAMPLE_KM: Record<ScoringPresetKey, [number, number]> = {
-		city: [1, 5],
-		norway: [20, 100],
-		europe: [50, 500],
-		world: [500, 2000],
-		custom: [50, 500]
+	/** Sample misses per preset for the live points table, chosen to span the useful range. */
+	const SAMPLE_KM: Record<ScoringPresetKey, [number, number, number, number]> = {
+		city: [0.5, 1, 3, 10],
+		region: [5, 10, 25, 50],
+		norway: [10, 25, 100, 250],
+		europe: [25, 100, 500, 1500],
+		world: [100, 500, 2000, 5000],
+		custom: [10, 50, 200, 1000]
 	};
+	const SAMPLE_YEARS = [0, 1, 2, 5] as const;
+
+	const strictnessOptions = Object.values(YEAR_STRICTNESS).map((s) => ({
+		value: s.key,
+		label: s.label,
+		description: s.description
+	}));
 
 	const presetOptions = Object.values(PRESETS).map((preset) => ({
 		value: preset.key,
@@ -83,19 +100,27 @@
 	}
 
 	const preset = $derived(settings.scoring.preset);
-	const scoreExample = $derived.by(() => {
-		const scoring = settings.scoring;
-		const [near, far] = SAMPLE_KM[scoring.preset];
-		const points = (km: number) => formatNumber(locationScore(km, scoring));
-		return (
-			`Innenfor ${formatDistance(scoring.perfectKm)} gir ${formatNumber(MAX_SCORE)} poeng. ` +
-			`Bom på ${formatDistance(near)} gir ${points(near)} poeng, ${formatDistance(far)} gir ${points(far)}.`
-		);
-	});
+	const strictness = $derived(yearStrictnessFor(settings.scoring.kYear));
 
 	const presetText = $derived(
-		preset === 'custom' ? scoreExample : `${PRESETS[preset].description}. ${scoreExample}`
+		preset === 'custom'
+			? `Egne verdier: full pott innenfor ${formatDistance(settings.scoring.perfectKm)}.`
+			: `${PRESETS[preset].description}. Full pott innenfor ${formatDistance(settings.scoring.perfectKm)}.`
 	);
+
+	/** What typical misses are worth with the current settings. */
+	const placeRow = $derived(
+		SAMPLE_KM[preset].map((km) => ({ km, points: locationScore(km, settings.scoring) }))
+	);
+	const yearRow = $derived(
+		SAMPLE_YEARS.map((diff) => ({ diff, points: yearScore(diff, settings.scoring) }))
+	);
+
+	function chooseStrictness(key: YearStrictness) {
+		const kYear = YEAR_STRICTNESS[key].kYear;
+		if (kYear === settings.scoring.kYear) return;
+		void onsave({ ...settings, scoring: { ...settings.scoring, kYear } });
+	}
 
 	function choosePreset(key: PresetKey) {
 		if (key === settings.scoring.preset) return;
@@ -171,16 +196,90 @@
 		{/if}
 	</div>
 
-	<div class="flex flex-col gap-2" data-testid="settings-preset">
-		<span class="text-sm font-semibold text-fg">Kartområde</span>
+	<Field label="Kartområde" hint={presetText}>
+		{#snippet children({ id, describedBy })}
+			<select
+				{id}
+				aria-describedby={describedBy}
+				data-testid="settings-preset"
+				class={cn(inputVariants(), 'pr-8 [color-scheme:dark]')}
+				value={preset}
+				onchange={(event) => choosePreset(event.currentTarget.value as PresetKey)}
+			>
+				{#each presetOptions as option (option.value)}
+					<option value={option.value}>{option.label}</option>
+				{/each}
+				{#if preset === 'custom'}
+					<option value="custom" disabled>Egne verdier</option>
+				{/if}
+			</select>
+		{/snippet}
+	</Field>
+
+	<div class="flex flex-col gap-2" data-testid="settings-year-strictness">
+		<span class="text-sm font-semibold text-fg">Årstall</span>
 		<Segmented
-			label="Kartområde"
-			options={presetOptions}
-			value={preset === 'custom' ? ('' as PresetKey) : preset}
-			onValueChange={choosePreset}
+			label="Hvor strengt årstallet teller"
+			options={strictnessOptions}
+			value={strictness ?? ('' as YearStrictness)}
+			onValueChange={chooseStrictness}
 		/>
-		<p class="text-sm text-muted">{presetText}</p>
+		<p class="text-sm text-muted">
+			{strictness ? YEAR_STRICTNESS[strictness].description : 'Egen verdi'}.
+		</p>
 	</div>
+
+	<figure
+		class="flex flex-col gap-2 rounded-md bg-sunken p-3"
+		data-testid="settings-points-preview"
+	>
+		<figcaption class="text-sm font-semibold text-fg">
+			Slik blir poengene
+			<span class="font-normal text-muted">(maks {formatNumber(MAX_SCORE * 2)} per bilde)</span>
+		</figcaption>
+		{#snippet pointsTable(
+			caption: string,
+			heading: string,
+			cells: { key: number; label: string; points: number }[]
+		)}
+			<table class="w-full table-fixed text-sm tabular">
+				<caption class="sr-only">{caption}</caption>
+				<thead>
+					<tr>
+						<th scope="row" class="w-24 py-0.5 text-left font-medium text-muted">{heading}</th>
+						{#each cells as cell (cell.key)}
+							<th
+								scope="col"
+								class="py-0.5 pl-1.5 text-right font-medium whitespace-nowrap text-muted"
+								>{cell.label}</th
+							>
+						{/each}
+					</tr>
+				</thead>
+				<tbody>
+					<tr>
+						<th scope="row" class="py-0.5 text-left font-medium text-muted">Poeng</th>
+						{#each cells as cell (cell.key)}
+							<td class="py-0.5 pl-1.5 text-right font-bold whitespace-nowrap text-fg"
+								>{formatNumber(cell.points)}</td
+							>
+						{/each}
+					</tr>
+				</tbody>
+			</table>
+		{/snippet}
+		{@render pointsTable(
+			'Poeng for sted',
+			'Bom på',
+			placeRow.map((c) => ({ key: c.km, label: formatDistance(c.km), points: c.points }))
+		)}
+		<div class="border-t border-line"></div>
+		{@render pointsTable(
+			'Poeng for år',
+			'År feil',
+			yearRow.map((c) => ({ key: c.diff, label: String(c.diff), points: c.points }))
+		)}
+	</figure>
 
 	<div data-testid="settings-shuffle">
 		<Switch
