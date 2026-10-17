@@ -25,6 +25,7 @@
 		"@eslint/js": "^10.0.1",
 		"@playwright/test": "^1.64.1",
 		"@sveltejs/adapter-auto": "^7.0.1",
+		"@sveltejs/adapter-vercel": "^6.3.4",
 		"@sveltejs/kit": "^2.63.0",
 		"@sveltejs/vite-plugin-svelte": "^7.1.2",
 		"@tailwindcss/vite": "^4.3.3",
@@ -68,5 +69,8 @@
 	},
 	"allowScripts": {
 		"esbuild@0.27.0": true
+	},
+	"engines": {
+		"node": ">=22"
 	}
 }

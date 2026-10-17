@@ -1,6 +1,7 @@
 <script lang="ts">
 	import Check from '@lucide/svelte/icons/check';
 	import { DateStamp, Print } from '$lib/ui';
+	import { formatPoints } from '../format';
 	import type { PlayerState } from '../types';
 
 	let { data }: { data: PlayerState } = $props();
@@ -33,4 +34,17 @@
 	<p class="text-sm font-semibold text-muted" data-testid="answered-count">
 		{data.answeredCount} av {data.playerCount} har svart
 	</p>
+
+	{#if data.me}
+		<div class="mt-auto flex items-center gap-3 rounded-full bg-raised px-4 py-2 text-sm">
+			<span class="font-semibold" data-testid="me-name">{data.me.name}</span>
+			<span class="text-muted">
+				<span
+					class="font-bold text-fg tabular"
+					data-testid="total-score"
+					data-total={data.me.totalScore}>{formatPoints(data.me.totalScore)}</span
+				> poeng
+			</span>
+		</div>
+	{/if}
 </section>
