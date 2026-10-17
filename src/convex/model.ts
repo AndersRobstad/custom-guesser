@@ -257,7 +257,7 @@ export interface RevealedAnswer {
  * Session data that is safe to show to everyone. Never includes `hostClientId`
  * or answers.
  */
-export function publicSession(session: Doc<'sessions'>) {
+export function publicSession(session: Doc<'sessions'>, now: number) {
 	return {
 		_id: session._id,
 		code: session.code,
@@ -271,7 +271,9 @@ export function publicSession(session: Doc<'sessions'>) {
 		yearMin: session.settings.yearMin,
 		yearMax: session.settings.yearMax,
 		scoringPreset: session.settings.scoring.preset,
-		hostPlays: session.settings.hostPlays
+		hostPlays: session.settings.hostPlays,
+		/** False when the host screen hasn't sent a heartbeat recently (the game is paused). */
+		hostActive: now - (session.hostLastSeenAt ?? session.createdAt) <= ACTIVE_WINDOW_MS
 	};
 }
 
@@ -360,7 +362,7 @@ export async function buildSessionView(ctx: QueryCtx, session: Doc<'sessions'>, 
 	}
 
 	return {
-		session: publicSession(session),
+		session: publicSession(session, now),
 		standings,
 		playerCount: players.length,
 		answeredCount: guesses.length,

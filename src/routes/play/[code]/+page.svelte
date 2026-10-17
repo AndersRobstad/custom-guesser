@@ -70,11 +70,21 @@
 			{:else}
 				<span
 					class="max-w-[9rem] truncate rounded-full bg-raised px-3 py-1 text-sm font-semibold"
-					data-testid="me-name">{data.me.name}</span
+					data-testid="header-name">{data.me.name}</span
 				>
 			{/if}
 		{/if}
 	</AppHeader>
+
+	{#if data?.me && !data.session.hostActive && status !== 'finished'}
+		<p
+			class="mx-3 mb-2 shrink-0 rounded-md bg-warning px-3 py-2 text-sm font-semibold text-bg"
+			role="status"
+			data-testid="host-away"
+		>
+			Verten har mistet forbindelsen. Spillet fortsetter når verten er tilbake.
+		</p>
+	{/if}
 
 	{#if query.isLoading && !data}
 		<div class="grid flex-1 place-items-center"><Spinner class="size-8" /></div>

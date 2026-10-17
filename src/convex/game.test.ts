@@ -334,6 +334,22 @@ describe('host access control', () => {
 	});
 });
 
+describe('host presence', () => {
+	it('tells players when the host screen has gone quiet, and recovers on heartbeat', async () => {
+		const t = setup();
+		const { code, sessionId } = await createSession(t, { rounds: 1 });
+		await join(t, code, 'p1', 'Kari');
+		let state = await t.query(api.players.state, { code, clientId: 'p1' });
+		expect(state?.session.hostActive).toBe(true);
+		vi.setSystemTime(T0 + 46_000);
+		state = await t.query(api.players.state, { code, clientId: 'p1' });
+		expect(state?.session.hostActive).toBe(false);
+		await t.mutation(api.sessions.hostHeartbeat, { sessionId, clientId: HOST });
+		state = await t.query(api.players.state, { code, clientId: 'p1' });
+		expect(state?.session.hostActive).toBe(true);
+	});
+});
+
 describe('state transitions', () => {
 	it('rejects illegal transitions', async () => {
 		const t = setup();

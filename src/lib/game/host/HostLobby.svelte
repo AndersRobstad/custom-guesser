@@ -68,10 +68,17 @@
 	</div>
 
 	<div class="flex items-center justify-between gap-6 border-t border-line pt-6">
-		<p class="text-lg text-muted">
-			{data.session.roundCount}
-			{data.session.roundCount === 1 ? 'bilde' : 'bilder'}. Spillerne kan bli med underveis også.
-		</p>
+		<div class="flex items-center gap-4">
+			<p class="text-lg text-muted">
+				{data.session.roundCount}
+				{data.session.roundCount === 1 ? 'bilde' : 'bilder'}. Spillerne kan bli med underveis også.
+			</p>
+			{#if data.session.hostPlays}
+				<Button href="/join?code={data.session.code}" target="_blank" variant="outline" size="sm">
+					Bli med som spiller
+				</Button>
+			{/if}
+		</div>
 		<Button
 			size="xl"
 			onclick={onstart}
