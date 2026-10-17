@@ -1,7 +1,7 @@
 import { v } from 'convex/values';
 import { mutation, query } from './_generated/server';
 import { TITLE_MAX_LENGTH, defaultSettings, validateSettings } from '../lib/game';
-import { activeSessionsForGame, fail, listRounds, requireOwnedGame } from './model';
+import { activeSessionsForGame, fail, listRounds, mediaUrls, requireOwnedGame } from './model';
 import { settingsValidator } from './validators';
 
 function cleanTitle(raw: string) {
@@ -38,7 +38,7 @@ export const listMine = query({
 					createdAt: game.createdAt,
 					updatedAt: game.updatedAt ?? game.createdAt,
 					roundCount: rounds.length,
-					coverUrl: rounds[0] ? await ctx.storage.getUrl(rounds[0].imageId) : null,
+					coverUrl: rounds[0] ? (await mediaUrls(ctx, rounds[0])).imageUrl : null,
 					timesPlayed: own.length,
 					activeSession: active
 						? { _id: active._id, code: active.code, status: active.status }
@@ -71,7 +71,8 @@ export const get = query({
 					_id: r._id,
 					order: r.order,
 					imageId: r.imageId,
-					imageUrl: await ctx.storage.getUrl(r.imageId),
+					posterId: r.posterId ?? null,
+					...(await mediaUrls(ctx, r)),
 					answerYear: r.answerYear,
 					answerLat: r.answerLat,
 					answerLng: r.answerLng,
@@ -138,6 +139,7 @@ export const remove = mutation({
 
 		for (const round of await listRounds(ctx, game._id)) {
 			await ctx.storage.delete(round.imageId);
+			if (round.posterId) await ctx.storage.delete(round.posterId);
 			await ctx.db.delete(round._id);
 		}
 		const sessions = await ctx.db

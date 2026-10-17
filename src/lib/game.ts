@@ -19,6 +19,13 @@ export const ACTIVE_WINDOW_MS = 45_000;
 /** Late guesses are accepted this long after `roundEndsAt` to absorb network latency. */
 export const GUESS_GRACE_MS = 1_000;
 
+/** Media limits. Images are compressed in the browser; videos can't be, so they're capped. */
+export const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
+export const MAX_VIDEO_BYTES = 50 * 1024 * 1024;
+export const MAX_VIDEO_SECONDS = 30;
+export const VIDEO_MIME_TYPES = ['video/mp4', 'video/webm', 'video/quicktime'] as const;
+export type MediaType = 'image' | 'video';
+
 export const DEFAULT_ROUND_SECONDS = 60;
 export const MAX_ROUND_SECONDS = 600;
 export const ROUND_SECONDS_OPTIONS = [0, 10, 20, 30, 45, 60, 90, 120, 180] as const;

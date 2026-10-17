@@ -1,6 +1,6 @@
 import { defineSchema, defineTable } from 'convex/server';
 import { v } from 'convex/values';
-import { sessionStatusValidator, settingsValidator } from './validators';
+import { mediaTypeValidator, sessionStatusValidator, settingsValidator } from './validators';
 
 export default defineSchema({
 	/** A game is the template: title, settings and an ordered list of rounds. */
@@ -15,7 +15,11 @@ export default defineSchema({
 	rounds: defineTable({
 		gameId: v.id('games'),
 		order: v.number(),
+		/** The round's media file: an image, or a video when `mediaType` is 'video'. */
 		imageId: v.id('_storage'),
+		mediaType: v.optional(mediaTypeValidator),
+		/** Still frame for video rounds; phones show this until the player taps play. */
+		posterId: v.optional(v.id('_storage')),
 		answerYear: v.number(),
 		answerLat: v.number(),
 		answerLng: v.number(),

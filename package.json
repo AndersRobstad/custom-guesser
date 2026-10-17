@@ -17,7 +17,8 @@
 		"lint": "prettier --check . && eslint .",
 		"format": "prettier --write .",
 		"typecheck": "tsc --noEmit -p tsconfig.json",
-		"convex:dev": "convex dev"
+		"convex:dev": "convex dev",
+		"fixtures": "node scripts/generate-fixtures.mjs"
 	},
 	"devDependencies": {
 		"@edge-runtime/vm": "^5.0.0",

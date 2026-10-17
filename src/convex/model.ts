@@ -47,6 +47,26 @@ export function listRounds(ctx: QueryCtx, gameId: Id<'games'>) {
 		.collect();
 }
 
+/**
+ * URLs for a round's media. `imageUrl` is always a still (the image itself, or
+ * the poster frame for videos) so every screen can show something light;
+ * `videoUrl` is only set for video rounds and is fetched on demand.
+ */
+export async function mediaUrls(ctx: QueryCtx, round: Doc<'rounds'>) {
+	if (round.mediaType === 'video') {
+		return {
+			mediaType: 'video' as const,
+			imageUrl: round.posterId ? await ctx.storage.getUrl(round.posterId) : null,
+			videoUrl: await ctx.storage.getUrl(round.imageId)
+		};
+	}
+	return {
+		mediaType: 'image' as const,
+		imageUrl: await ctx.storage.getUrl(round.imageId),
+		videoUrl: null
+	};
+}
+
 export function listPlayers(ctx: QueryCtx, sessionId: Id<'sessions'>) {
 	return ctx.db
 		.query('players')
@@ -292,7 +312,9 @@ export async function buildSessionView(ctx: QueryCtx, session: Doc<'sessions'>, 
 
 	let round: {
 		index: number;
+		mediaType: 'image' | 'video';
 		imageUrl: string | null;
+		videoUrl: string | null;
 		answer: RevealedAnswer | null;
 		results: RoundResult[] | null;
 	} | null = null;
@@ -322,7 +344,7 @@ export async function buildSessionView(ctx: QueryCtx, session: Doc<'sessions'>, 
 			: null;
 		round = {
 			index: session.currentRoundIndex,
-			imageUrl: doc ? await ctx.storage.getUrl(doc.imageId) : null,
+			...(doc ? await mediaUrls(ctx, doc) : { mediaType: 'image', imageUrl: null, videoUrl: null }),
 			answer:
 				revealed && doc
 					? {

@@ -1,16 +1,22 @@
 import { v } from 'convex/values';
-import type { Doc } from './_generated/dataModel';
-import { mutation } from './_generated/server';
+import type { Doc, Id } from './_generated/dataModel';
+import { mutation, type MutationCtx } from './_generated/server';
 import {
 	CAPTION_MAX_LENGTH,
 	LABEL_MAX_LENGTH,
+	MAX_IMAGE_BYTES,
 	MAX_ROUND_SECONDS,
-	isValidLatLng
+	MAX_VIDEO_BYTES,
+	isValidLatLng,
+	type MediaType
 } from '../lib/game';
 import { activeSessionsForGame, fail, listRounds, requireOwnedGame } from './model';
+import { mediaTypeValidator } from './validators';
 
 const roundFields = {
 	imageId: v.id('_storage'),
+	mediaType: v.optional(mediaTypeValidator),
+	posterId: v.optional(v.id('_storage')),
 	answerYear: v.number(),
 	answerLat: v.number(),
 	answerLng: v.number(),
@@ -60,6 +66,33 @@ function validateRound(game: Doc<'games'>, input: RoundInput) {
 	};
 }
 
+/**
+ * Checks the uploaded files against the media limits. Videos aren't compressed
+ * in the browser, so they're capped at 50 MB and need a poster frame for phones.
+ */
+async function validateMedia(
+	ctx: MutationCtx,
+	mediaType: MediaType,
+	imageId: Id<'_storage'>,
+	posterId: Id<'_storage'> | undefined
+) {
+	const file = await ctx.db.system.get(imageId);
+	if (!file) fail('Filen mangler. Last den opp på nytt.');
+	const type = file.contentType ?? '';
+	if (mediaType === 'video') {
+		if (type && !type.startsWith('video/')) fail('Filen er ikke en video.');
+		if (file.size > MAX_VIDEO_BYTES)
+			fail(`Videoen er for stor. Maks ${MAX_VIDEO_BYTES / 1024 / 1024} MB.`);
+		if (!posterId || !(await ctx.db.system.get(posterId)))
+			fail('Videoen mangler et stillbilde. Last den opp på nytt.');
+		return { mediaType, posterId };
+	}
+	if (type && !type.startsWith('image/')) fail('Filen er ikke et bilde.');
+	if (file.size > MAX_IMAGE_BYTES)
+		fail(`Bildet er for stort. Maks ${MAX_IMAGE_BYTES / 1024 / 1024} MB.`);
+	return { mediaType: undefined, posterId: undefined };
+}
+
 export const generateUploadUrl = mutation({
 	args: { clientId: v.string() },
 	handler: async (ctx, { clientId }) => {
@@ -70,13 +103,19 @@ export const generateUploadUrl = mutation({
 
 export const create = mutation({
 	args: { gameId: v.id('games'), clientId: v.string(), ...roundFields },
-	handler: async (ctx, { gameId, clientId, imageId, ...input }) => {
+	handler: async (ctx, { gameId, clientId, imageId, mediaType, posterId, ...input }) => {
 		const game = await requireOwnedGame(ctx, gameId, clientId);
-		if (!(await ctx.db.system.get(imageId))) fail('Bildet mangler. Last det opp på nytt.');
+		const media = await validateMedia(ctx, mediaType ?? 'image', imageId, posterId);
 		const fields = validateRound(game, input);
 		const rounds = await listRounds(ctx, game._id);
 		const order = rounds.length === 0 ? 0 : rounds[rounds.length - 1].order + 1;
-		const roundId = await ctx.db.insert('rounds', { gameId, order, imageId, ...fields });
+		const roundId = await ctx.db.insert('rounds', {
+			gameId,
+			order,
+			imageId,
+			...media,
+			...fields
+		});
 		await ctx.db.patch(game._id, { updatedAt: Date.now() });
 		return roundId;
 	}
@@ -84,20 +123,22 @@ export const create = mutation({
 
 export const update = mutation({
 	args: { roundId: v.id('rounds'), clientId: v.string(), ...roundFields },
-	handler: async (ctx, { roundId, clientId, imageId, ...input }) => {
+	handler: async (ctx, { roundId, clientId, imageId, mediaType, posterId, ...input }) => {
 		const round = await ctx.db.get(roundId);
 		if (!round) fail('Fant ikke runden.');
 		const game = await requireOwnedGame(ctx, round.gameId, clientId);
 		const fields = validateRound(game, input);
-		if (imageId !== round.imageId) {
-			if (!(await ctx.db.system.get(imageId))) fail('Bildet mangler. Last det opp på nytt.');
-			await ctx.storage.delete(round.imageId);
-		}
-		// `replace` so cleared optional fields (label, caption, time) are removed.
+		const media = await validateMedia(ctx, mediaType ?? 'image', imageId, posterId);
+		// Clean up files that are no longer referenced.
+		if (imageId !== round.imageId) await ctx.storage.delete(round.imageId);
+		if (round.posterId && round.posterId !== media.posterId)
+			await ctx.storage.delete(round.posterId);
+		// `replace` so cleared optional fields (label, caption, time, poster) are removed.
 		await ctx.db.replace(round._id, {
 			gameId: round.gameId,
 			order: round.order,
 			imageId,
+			...media,
 			...fields
 		});
 		await ctx.db.patch(game._id, { updatedAt: Date.now() });
@@ -113,6 +154,7 @@ export const remove = mutation({
 		if ((await activeSessionsForGame(ctx, game)).length > 0)
 			fail('Du kan ikke slette runder mens en økt pågår.');
 		await ctx.storage.delete(round.imageId);
+		if (round.posterId) await ctx.storage.delete(round.posterId);
 		await ctx.db.delete(round._id);
 		const rest = await listRounds(ctx, game._id);
 		for (const [i, r] of rest.entries()) if (r.order !== i) await ctx.db.patch(r._id, { order: i });

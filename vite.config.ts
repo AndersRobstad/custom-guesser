@@ -16,6 +16,19 @@ export default defineConfig({
 			adapter: adapter()
 		})
 	],
+	optimizeDeps: {
+		// Pre-bundle client-only deps up front so the first visit to a game screen
+		// doesn't trigger a dev-server re-optimization and page reload.
+		include: [
+			'leaflet',
+			'qrcode',
+			'exifr',
+			'bits-ui',
+			'convex-svelte',
+			'convex/browser',
+			'convex/values'
+		]
+	},
 	server: {
 		port: Number(process.env.PORT ?? 5173),
 		strictPort: !!process.env.PORT

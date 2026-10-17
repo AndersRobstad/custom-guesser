@@ -1,33 +1,20 @@
 <script lang="ts" module>
-	export type LatLng = { lat: number; lng: number };
-
-	export interface MapMarker extends LatLng {
-		id: string;
-		/** `answer` = the orange Glimt pin, `guess` = a player pin, `draft` = the pin being placed. */
-		kind: 'answer' | 'guess' | 'draft';
-		color?: string;
-		/** Short text inside the pin (initials). */
-		text?: string;
-		/** Tooltip / accessible label. */
-		label?: string;
-		highlight?: boolean;
-	}
-
-	export interface MapLine {
-		from: LatLng;
-		to: LatLng;
-		color?: string;
-	}
-
-	export const TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
-	export const DEFAULT_CENTER: LatLng = { lat: 54, lng: 12 };
-	export const DEFAULT_ZOOM = 3;
+	// Types live in a plain module so `.ts` files can import them; re-exported for convenience.
+	export type { LatLng, MapLine, MapMarker } from './types';
 </script>
 
 <script lang="ts">
 	import 'leaflet/dist/leaflet.css';
 	import type * as Leaflet from 'leaflet';
 	import { cn } from '$lib/ui/cn';
+	import {
+		DEFAULT_CENTER,
+		DEFAULT_ZOOM,
+		TILE_URL,
+		type LatLng,
+		type MapLine,
+		type MapMarker
+	} from './types';
 
 	let {
 		markers = [],
@@ -143,6 +130,10 @@
 		return () => {
 			destroyed = true;
 			resize.disconnect();
+			// Stop pending pan/zoom animations first; removing mid-animation makes
+			// Leaflet's queued frames hit a detached pane (`_leaflet_pos` errors).
+			instance?.stop();
+			instance?.off();
 			instance?.remove();
 			map = null;
 		};
@@ -193,17 +184,19 @@
 	$effect(() => {
 		if (!map || !L || !fitKey || !fitTo?.length) return;
 		if (fitTo.length === 1) {
-			map.setView([fitTo[0].lat, fitTo[0].lng], Math.max(map.getZoom(), Math.min(maxFitZoom, 8)));
+			map.setView([fitTo[0].lat, fitTo[0].lng], Math.max(map.getZoom(), Math.min(maxFitZoom, 8)), {
+				animate: false
+			});
 			return;
 		}
 		const bounds = L.latLngBounds(fitTo.map((p) => [p.lat, p.lng] as [number, number]));
-		map.fitBounds(bounds, { padding: [48, 48], maxZoom: maxFitZoom, animate: true });
+		map.fitBounds(bounds, { padding: [48, 48], maxZoom: maxFitZoom, animate: false });
 	});
 
 	$effect(() => {
 		if (!map || !focus) return;
 		map.setView([focus.lat, focus.lng], focus.zoom ?? Math.max(map.getZoom(), 11), {
-			animate: true
+			animate: false
 		});
 	});
 </script>

@@ -27,3 +27,5 @@ export const sessionStatusValidator = v.union(
 	v.literal('reveal'),
 	v.literal('finished')
 );
+
+export const mediaTypeValidator = v.union(v.literal('image'), v.literal('video'));

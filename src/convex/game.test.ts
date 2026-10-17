@@ -686,3 +686,69 @@ describe('answer leakage', () => {
 		});
 	});
 });
+
+describe('video rounds', () => {
+	async function storeVideo(t: T) {
+		return t.run((ctx) => ctx.storage.store(new Blob(['fake-video'], { type: 'video/mp4' })));
+	}
+
+	async function videoGame(t: T) {
+		const { gameId } = await createGame(t, { rounds: 0 });
+		const imageId = await storeVideo(t);
+		const posterId = await storeImage(t);
+		const roundId = await t.mutation(api.rounds.create, {
+			gameId,
+			clientId: HOST,
+			imageId,
+			mediaType: 'video',
+			posterId,
+			...ROUNDS[0]
+		});
+		return { gameId, roundId, imageId, posterId };
+	}
+
+	it('stores a video with its poster frame and exposes both URLs', async () => {
+		const t = setup();
+		const { gameId } = await videoGame(t);
+		const game = await t.query(api.games.get, { gameId, clientId: HOST });
+		const round = game!.rounds[0];
+		expect(round.mediaType).toBe('video');
+		expect(round.videoUrl).toBeTruthy();
+		expect(round.imageUrl).toBeTruthy();
+		expect(round.imageUrl).not.toBe(round.videoUrl);
+	});
+
+	it('rejects videos without a poster frame', async () => {
+		// convex-test doesn't record upload content types, so the image/video type
+		// checks in `validateMedia` are only exercised against a real backend (E2E).
+		const t = setup();
+		const { gameId } = await createGame(t, { rounds: 0 });
+		const base = { gameId, clientId: HOST, ...ROUNDS[0] };
+		await expect(
+			t.mutation(api.rounds.create, { ...base, imageId: await storeVideo(t), mediaType: 'video' })
+		).rejects.toThrow(/stillbilde/);
+	});
+
+	it('gives players the poster and an on-demand video URL during play', async () => {
+		const t = setup();
+		const { gameId } = await videoGame(t);
+		const { sessionId, code } = await t.mutation(api.sessions.create, { gameId, clientId: HOST });
+		await join(t, code, 'p1', 'Kari');
+		await t.mutation(api.sessions.start, { sessionId, clientId: HOST });
+		const state = await t.query(api.players.state, { code, clientId: 'p1' });
+		expect(state?.round).toMatchObject({ mediaType: 'video', answer: null });
+		expect(state?.round?.videoUrl).toBeTruthy();
+		expect(state?.round?.imageUrl).toBeTruthy();
+	});
+
+	it('deletes the video and poster files with the round', async () => {
+		const t = setup();
+		const { roundId, imageId, posterId } = await videoGame(t);
+		await t.mutation(api.rounds.remove, { roundId, clientId: HOST });
+		const files = await t.run(async (ctx) => [
+			await ctx.db.system.get(imageId),
+			await ctx.db.system.get(posterId)
+		]);
+		expect(files).toEqual([null, null]);
+	});
+});
