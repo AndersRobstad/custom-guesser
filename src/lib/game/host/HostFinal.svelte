@@ -19,21 +19,26 @@
 </script>
 
 <section
-	class="grid min-h-0 flex-1 grid-cols-[1.2fr_1fr] gap-10 px-10 pb-10"
+	class="grid min-h-0 flex-1 grid-cols-[1.2fr_1fr] grid-rows-[auto_1fr] gap-x-12 gap-y-6 px-10 pb-10"
 	data-testid="host-final"
 >
-	<div class="flex min-h-0 flex-col justify-end gap-8">
+	<header class="col-span-2 flex items-end justify-between gap-6">
 		<h1 class="text-6xl font-black tracking-tight">
 			{data.standings[0] ? `${data.standings[0].name} vant!` : 'Spillet er ferdig'}
 		</h1>
-		<Podium standings={data.standings} {colors} size="lg" />
+		<p class="pb-2 text-lg text-muted">«{data.session.title}»</p>
+	</header>
+
+	<div class="flex min-h-0 items-end">
+		<Podium standings={data.standings} {colors} size="lg" class="w-full" />
 	</div>
-	<div class="flex min-h-0 flex-col gap-4">
+
+	<div class="flex min-h-0 flex-col justify-end gap-4">
 		<h2 class="text-sm font-semibold text-muted">Resultatliste</h2>
-		<div class="min-h-0 flex-1 overflow-y-auto pr-1" data-testid="final-standings">
+		<div class="min-h-0 overflow-y-auto pr-1" data-testid="final-standings">
 			<Leaderboard standings={data.standings} {colors} size="lg" />
 		</div>
-		<div class="flex gap-3">
+		<div class="flex gap-3 pt-2">
 			<Button size="lg" onclick={onrestart} loading={restarting} data-testid="play-again">
 				<RotateCcw class="size-5" /> Spill igjen
 			</Button>
