@@ -110,6 +110,8 @@ function watchConsole(page: Page, who: string) {
 async function guess(page: Page, x: number, y: number, year: number): Promise<Guess> {
 	await expect(page.getByTestId('guess-screen')).toBeVisible();
 	const map = page.getByTestId('guess-map');
+	// Leaflet loads lazily; a tap before it's ready places no pin.
+	await expect(map).toHaveAttribute('data-map-ready', 'true');
 	await map.click({ position: { x, y } });
 	await expect(map).toHaveAttribute('data-pin-lat', /.+/);
 	await page.getByTestId('year-input').fill(String(year));
@@ -195,6 +197,7 @@ test('a host and three phones play a full three-round game', async ({ browser })
 	// Kari's guess is done by hand so we can screenshot the filled-in guess screen.
 	await expect(phones[0].getByTestId('guess-screen')).toBeVisible();
 	const map0 = phones[0].getByTestId('guess-map');
+	await expect(map0).toHaveAttribute('data-map-ready', 'true');
 	await map0.click({ position: { x: 180, y: 70 } });
 	await expect(map0).toHaveAttribute('data-pin-lat', /.+/);
 	await phones[0].getByTestId('year-input').fill('2003');

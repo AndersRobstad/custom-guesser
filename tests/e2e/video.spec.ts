@@ -92,6 +92,7 @@ test('a video round autoplays on the TV and loads on demand on the phone', async
 	await expect(phoneMedia.locator('video')).toBeVisible();
 
 	// The round still plays like any other.
+	await expect(phone.getByTestId('guess-map')).toHaveAttribute('data-map-ready', 'true');
 	await phone.getByTestId('guess-map').click({ position: { x: 200, y: 80 } });
 	await phone.getByTestId('year-input').fill('2004');
 	await phone.getByTestId('submit-guess').click();

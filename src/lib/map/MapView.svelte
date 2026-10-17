@@ -230,6 +230,7 @@
 		? `${label}. Flytt kartet med piltastene og trykk Enter for å sette nål i midten.`
 		: label}
 	{onkeydown}
+	data-map-ready={map ? 'true' : 'false'}
 	{...rest}
 ></div>
 
