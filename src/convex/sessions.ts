@@ -1,6 +1,6 @@
 import { v } from 'convex/values';
 import { internalMutation, mutation, query } from './_generated/server';
-import { generateCode } from '../lib/game';
+import { CODE_REUSE_COOLDOWN_MS, generateCode } from '../lib/game';
 import {
 	beginRound,
 	buildSessionView,
@@ -12,7 +12,8 @@ import {
 	requireOwnedGame,
 	revealIfEveryoneAnswered,
 	revealRound,
-	sessionsForCode
+	sessionsForCode,
+	touchPresence
 } from './model';
 
 const MAX_CODE_ATTEMPTS = 50;
@@ -25,15 +26,17 @@ export const create = mutation({
 		const rounds = await listRounds(ctx, game._id);
 		if (rounds.length === 0) fail('Legg til minst én runde før du starter et spill.');
 
+		const now = Date.now();
 		let code: string | null = null;
 		for (let attempt = 0; attempt < MAX_CODE_ATTEMPTS && !code; attempt++) {
 			const candidate = generateCode();
-			const clash = (await sessionsForCode(ctx, candidate)).some((s) => s.status !== 'finished');
+			const clash = (await sessionsForCode(ctx, candidate)).some(
+				(s) => s.status !== 'finished' || now - (s.finishedAt ?? now) < CODE_REUSE_COOLDOWN_MS
+			);
 			if (!clash) code = candidate;
 		}
 		if (!code) fail('Klarte ikke å lage en ledig spillkode. Prøv igjen.');
 
-		const now = Date.now();
 		const sessionId = await ctx.db.insert('sessions', {
 			gameId: game._id,
 			hostClientId: clientId,
@@ -41,11 +44,11 @@ export const create = mutation({
 			status: 'lobby',
 			currentRoundIndex: 0,
 			createdAt: now,
-			hostLastSeenAt: now,
 			title: game.title,
 			settings: game.settings,
 			roundIds: rounds.map((r) => r._id)
 		});
+		await touchPresence(ctx, sessionId, clientId, 'host');
 		return { sessionId, code };
 	}
 });
@@ -69,7 +72,9 @@ export const hostState = query({
 		if (!sessionId) return null;
 		const session = await ctx.db.get(sessionId);
 		if (!session || session.hostClientId !== args.clientId) return null;
-		const { guessByPlayer: _, ...view } = await buildSessionView(ctx, session, Date.now());
+		const { guessByPlayer: _, ...view } = await buildSessionView(ctx, session, Date.now(), {
+			withPresence: true
+		});
 		const round = view.round
 			? {
 					...view.round,
@@ -100,19 +105,34 @@ export const start = mutation({
 	}
 });
 
+/**
+ * `roundIndex` (optional) is the round the host's screen is showing. If the
+ * timer already revealed that round, or another tab already moved on, the call
+ * is a quiet no-op instead of an error.
+ */
 export const revealNow = mutation({
-	args: { sessionId: v.id('sessions'), clientId: v.string() },
-	handler: async (ctx, { sessionId, clientId }) => {
+	args: { sessionId: v.id('sessions'), clientId: v.string(), roundIndex: v.optional(v.number()) },
+	handler: async (ctx, { sessionId, clientId, roundIndex }) => {
 		const session = await requireHostSession(ctx, sessionId, clientId);
+		const alreadyDone =
+			roundIndex !== undefined &&
+			(session.currentRoundIndex > roundIndex ||
+				(session.currentRoundIndex === roundIndex && session.status !== 'playing'));
+		if (alreadyDone) return;
 		if (session.status !== 'playing') fail('Det er ingen åpen runde å avsløre.');
 		await revealRound(ctx, session);
 	}
 });
 
 export const next = mutation({
-	args: { sessionId: v.id('sessions'), clientId: v.string() },
-	handler: async (ctx, { sessionId, clientId }) => {
+	args: { sessionId: v.id('sessions'), clientId: v.string(), roundIndex: v.optional(v.number()) },
+	handler: async (ctx, { sessionId, clientId, roundIndex }) => {
 		const session = await requireHostSession(ctx, sessionId, clientId);
+		const alreadyDone =
+			roundIndex !== undefined &&
+			(session.currentRoundIndex > roundIndex ||
+				(session.currentRoundIndex === roundIndex && session.status === 'finished'));
+		if (alreadyDone) return;
 		if (session.status !== 'reveal') fail('Du kan bare gå videre etter at runden er avslørt.');
 		const nextIndex = session.currentRoundIndex + 1;
 		if (nextIndex < session.roundIds.length) await beginRound(ctx, session, nextIndex);
@@ -137,8 +157,7 @@ export const hostHeartbeat = mutation({
 	args: { sessionId: v.id('sessions'), clientId: v.string() },
 	handler: async (ctx, { sessionId, clientId }) => {
 		const session = await requireHostSession(ctx, sessionId, clientId);
-		const now = Date.now();
-		await ctx.db.patch(session._id, { hostLastSeenAt: now });
+		const now = await touchPresence(ctx, session._id, clientId, 'host');
 		await revealIfEveryoneAnswered(ctx, session);
 		return { serverNow: now };
 	}

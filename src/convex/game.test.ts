@@ -4,7 +4,13 @@ import { api, internal } from './_generated/api';
 import type { Id } from './_generated/dataModel';
 import schema from './schema';
 import { modules } from './test.setup';
-import { CODE_ALPHABET, CODE_LENGTH, GUESS_GRACE_MS, isValidCode } from '../lib/game';
+import {
+	CODE_ALPHABET,
+	CODE_LENGTH,
+	CODE_REUSE_COOLDOWN_MS,
+	GUESS_GRACE_MS,
+	isValidCode
+} from '../lib/game';
 import { presetScoring, scoreGuess } from '../lib/scoring';
 
 const HOST = 'host-client';
@@ -212,16 +218,25 @@ describe('join codes', () => {
 		expect(second.code).toBe('XYZ234');
 	});
 
-	it('allows reusing the code of a finished session', async () => {
+	it("only reuses a finished session's code after the cooldown", async () => {
 		const t = setup();
 		const { gameId } = await createGame(t, { rounds: 1 });
-		const sequence = [...randomsFor('ABCDEF'), ...randomsFor('ABCDEF')];
+		const sequence = [
+			...randomsFor('ABCDEF'),
+			...randomsFor('ABCDEF'),
+			...randomsFor('XYZ234'),
+			...randomsFor('ABCDEF')
+		];
 		vi.spyOn(Math, 'random').mockImplementation(() => sequence.shift() ?? 0.5);
 		const first = await t.mutation(api.sessions.create, { gameId, clientId: HOST });
 		await t.mutation(api.sessions.end, { sessionId: first.sessionId, clientId: HOST });
+		// Just finished: ABCDEF is still taken, so a new code is drawn.
 		const second = await t.mutation(api.sessions.create, { gameId, clientId: HOST });
-		expect(second.code).toBe('ABCDEF');
-		expect(second.sessionId).not.toBe(first.sessionId);
+		expect(second.code).toBe('XYZ234');
+		vi.setSystemTime(T0 + CODE_REUSE_COOLDOWN_MS + 1);
+		const third = await t.mutation(api.sessions.create, { gameId, clientId: HOST });
+		expect(third.code).toBe('ABCDEF');
+		expect(third.sessionId).not.toBe(first.sessionId);
 	});
 
 	it('looks up codes case-insensitively and ignores whitespace', async () => {
@@ -766,5 +781,102 @@ describe('video rounds', () => {
 			await ctx.db.system.get(posterId)
 		]);
 		expect(files).toEqual([null, null]);
+	});
+});
+
+describe('review regressions', () => {
+	it('gives everyone a fresh activity window when a round starts', async () => {
+		const t = setup();
+		const { code, sessionId } = await createSession(t, { rounds: 1, roundSeconds: 300 });
+		await join(t, code, 'p1', 'Kari');
+		await join(t, code, 'sleepy', 'Låst mobil');
+		// A long lobby: the sleepy phone locked and stopped sending heartbeats.
+		vi.setSystemTime(T0 + 120_000);
+		await t.mutation(api.players.heartbeat, { sessionId, clientId: 'p1' });
+		await t.mutation(api.sessions.start, { sessionId, clientId: HOST });
+		vi.setSystemTime(T0 + 125_000);
+		await guess(t, sessionId, 'p1', 0, { lat: 60, lng: 10, year: 2010 });
+		expect((await getSession(t, sessionId))?.status).toBe('playing');
+		// After 45 s of round time without a sign of life, it no longer holds the round up.
+		vi.setSystemTime(T0 + 120_000 + 46_000);
+		await t.mutation(api.sessions.hostHeartbeat, { sessionId, clientId: HOST });
+		expect((await getSession(t, sessionId))?.status).toBe('reveal');
+	});
+
+	it('does not reveal an empty round just because everyone is idle', async () => {
+		const t = setup();
+		const { code, sessionId } = await createSession(t, { rounds: 1, roundSeconds: 0 });
+		await join(t, code, 'p1', 'Kari');
+		await t.mutation(api.sessions.start, { sessionId, clientId: HOST });
+		vi.setSystemTime(T0 + 100_000);
+		await t.mutation(api.sessions.hostHeartbeat, { sessionId, clientId: HOST });
+		expect((await getSession(t, sessionId))?.status).toBe('playing');
+	});
+
+	it('treats a late "reveal now" / double "next" for an old round as a no-op', async () => {
+		const t = setup();
+		const { code, sessionId } = await createSession(t, { rounds: 3, roundSeconds: 5 });
+		await join(t, code, 'p1', 'Kari');
+		await join(t, code, 'p2', 'Ola');
+		const host = { sessionId, clientId: HOST };
+		await t.mutation(api.sessions.start, host);
+		await t.finishAllScheduledFunctions(vi.runAllTimers);
+		expect((await getSession(t, sessionId))?.status).toBe('reveal');
+		await expect(
+			t.mutation(api.sessions.revealNow, { ...host, roundIndex: 0 })
+		).resolves.toBeNull();
+		await t.mutation(api.sessions.next, { ...host, roundIndex: 0 });
+		await t.mutation(api.sessions.next, { ...host, roundIndex: 0 });
+		expect(await getSession(t, sessionId)).toMatchObject({
+			status: 'playing',
+			currentRoundIndex: 1
+		});
+		// Without the round index the old strict behaviour stays.
+		await expect(t.mutation(api.sessions.next, host)).rejects.toThrow(/etter at runden er avslørt/);
+	});
+
+	it('shows rank movement from round 2, accounting for response-time tie-breaks', async () => {
+		const t = setup();
+		const { code, sessionId } = await createSession(t, { rounds: 2 });
+		await join(t, code, 'a', 'A');
+		await join(t, code, 'b', 'B');
+		const host = { sessionId, clientId: HOST };
+		await t.mutation(api.sessions.start, host);
+		vi.setSystemTime(T0 + 5_000);
+		await guess(t, sessionId, 'b', 0, { lat: 35.3687, lng: 24.4736, year: 2000 }); // 5000 + 1839
+		vi.setSystemTime(T0 + 20_000);
+		await guess(t, sessionId, 'a', 0, { lat: 35.3687, lng: 24.4736, year: 2004 }); // 10000
+		let state = await t.query(api.sessions.hostState, host);
+		expect(state?.standings.map((s) => s.previousRank)).toEqual([null, null]);
+
+		await t.mutation(api.sessions.next, host);
+		vi.setSystemTime(T0 + 30_000);
+		await guess(t, sessionId, 'a', 1, { lat: 0, lng: -170, year: 1999 });
+		await guess(t, sessionId, 'b', 1, { lat: 59.9139, lng: 10.7522, year: 2012 });
+		state = await t.query(api.sessions.hostState, host);
+		const byName = Object.fromEntries(state!.standings.map((s) => [s.name, s]));
+		expect(byName.B).toMatchObject({ rank: 1, previousRank: 2 });
+		expect(byName.A).toMatchObject({ rank: 2, previousRank: 1 });
+	});
+
+	it('only tracks presence in the host view and keeps player views presence-free', async () => {
+		const t = setup();
+		const { code, sessionId } = await createSession(t, { rounds: 1 });
+		await join(t, code, 'p1', 'Kari');
+		const hostView = await t.query(api.sessions.hostState, { sessionId, clientId: HOST });
+		expect(hostView?.standings[0].active).toBe(true);
+		const playerView = await t.query(api.players.state, { code, clientId: 'p1' });
+		expect(playerView?.standings[0].active).toBeNull();
+		const rows = await t.run((ctx) => ctx.db.query('presence').collect());
+		expect(rows.map((r) => r.role).sort()).toEqual(['host', 'player']);
+	});
+
+	it('shows a finished game to non-players instead of "not found"', async () => {
+		const t = setup();
+		const { code, sessionId } = await createSession(t, { rounds: 1 });
+		await join(t, code, 'p1', 'Kari');
+		await t.mutation(api.sessions.end, { sessionId, clientId: HOST });
+		const view = await t.query(api.players.state, { code, clientId: 'stranger' });
+		expect(view).toMatchObject({ me: null, session: { status: 'finished' } });
 	});
 });

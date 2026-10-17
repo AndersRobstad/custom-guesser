@@ -6,6 +6,12 @@ import { DEFAULT_K_YEAR, DEFAULT_PRESET, PRESETS, type PresetKey } from './scori
 
 export const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 export const CODE_LENGTH = 6;
+/**
+ * Codes are unique among unfinished sessions, and also aren't handed out again
+ * until a day after a session finished, so old /play links and stored ids keep
+ * pointing at the right game.
+ */
+export const CODE_REUSE_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 
 export const NAME_MAX_LENGTH = 20;
 export const TITLE_MAX_LENGTH = 60;

@@ -33,6 +33,8 @@
 
 	function step(delta: number) {
 		value = clamp((value ?? middle) + delta);
+		// Keep the text being edited in sync, or blur would commit the old draft.
+		if (editing) draft = String(value);
 	}
 
 	function commitDraft() {

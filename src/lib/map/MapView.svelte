@@ -1,6 +1,7 @@
 <script lang="ts">
 	import 'leaflet/dist/leaflet.css';
 	import type * as Leaflet from 'leaflet';
+	import { untrack } from 'svelte';
 	import { cn } from '$lib/ui/cn';
 	import {
 		DEFAULT_CENTER,
@@ -134,12 +135,17 @@
 		};
 	}
 
-	// Markers and lines are re-drawn as one layer whenever they change.
+	// Markers and lines are re-drawn as one layer, but only when their content
+	// changes — parents often pass fresh arrays with identical data on every update.
+	const layerKey = $derived(JSON.stringify([markers, lines]));
+
 	$effect(() => {
+		void layerKey;
 		if (!map || !L) return;
 		const lib = L;
+		const [currentMarkers, currentLines] = untrack(() => [markers, lines] as const);
 		const layer = lib.layerGroup().addTo(map);
-		for (const line of lines) {
+		for (const line of currentLines) {
 			lib
 				.polyline(
 					[
@@ -156,7 +162,7 @@
 				)
 				.addTo(layer);
 		}
-		for (const m of markers) {
+		for (const m of currentMarkers) {
 			const marker = lib
 				.marker([m.lat, m.lng], {
 					icon: iconFor(lib, m),
@@ -176,17 +182,33 @@
 		fitTo ? fitTo.map((p) => `${p.lat.toFixed(5)},${p.lng.toFixed(5)}`).join('|') : ''
 	);
 
+	// Refit only when the set of points changes, so a player's own panning isn't reset.
 	$effect(() => {
-		if (!map || !L || !fitKey || !fitTo?.length) return;
-		if (fitTo.length === 1) {
-			map.setView([fitTo[0].lat, fitTo[0].lng], Math.max(map.getZoom(), Math.min(maxFitZoom, 8)), {
-				animate: false
-			});
+		if (!map || !L || !fitKey) return;
+		const points = untrack(() => fitTo) ?? [];
+		if (points.length === 0) return;
+		if (points.length === 1) {
+			map.setView(
+				[points[0].lat, points[0].lng],
+				Math.max(map.getZoom(), Math.min(maxFitZoom, 8)),
+				{
+					animate: false
+				}
+			);
 			return;
 		}
-		const bounds = L.latLngBounds(fitTo.map((p) => [p.lat, p.lng] as [number, number]));
+		const bounds = L.latLngBounds(points.map((p) => [p.lat, p.lng] as [number, number]));
 		map.fitBounds(bounds, { padding: [48, 48], maxZoom: maxFitZoom, animate: false });
 	});
+
+	/** Keyboard: Leaflet already pans with arrows and zooms with +/-; Enter drops the pin at the centre. */
+	function onkeydown(e: KeyboardEvent) {
+		if (!pickable || !map || (e.key !== 'Enter' && e.key !== ' ')) return;
+		if (e.target !== e.currentTarget) return;
+		e.preventDefault();
+		const pos = map.getCenter().wrap();
+		onpick?.({ lat: pos.lat, lng: pos.lng });
+	}
 
 	$effect(() => {
 		if (!map || !focus) return;
@@ -204,7 +226,10 @@
 		className
 	)}
 	role="application"
-	aria-label={label}
+	aria-label={pickable
+		? `${label}. Flytt kartet med piltastene og trykk Enter for å sette nål i midten.`
+		: label}
+	{onkeydown}
 	{...rest}
 ></div>
 

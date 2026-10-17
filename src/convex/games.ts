@@ -151,6 +151,11 @@ export const remove = mutation({
 				.query('players')
 				.withIndex('by_session', (q) => q.eq('sessionId', session._id))
 				.collect();
+			const presence = await ctx.db
+				.query('presence')
+				.withIndex('by_session', (q) => q.eq('sessionId', session._id))
+				.collect();
+			for (const row of presence) await ctx.db.delete(row._id);
 			for (const player of players) {
 				const guesses = await ctx.db
 					.query('guesses')

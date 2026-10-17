@@ -91,16 +91,66 @@ export function sessionsForCode(ctx: QueryCtx, rawCode: string) {
 		.collect();
 }
 
-export async function activeSessionsForGame(ctx: QueryCtx, game: Doc<'games'>) {
-	const sessions = await ctx.db
+export function sessionsForGame(ctx: QueryCtx, gameId: Id<'games'>) {
+	return ctx.db
 		.query('sessions')
-		.withIndex('by_host', (q) => q.eq('hostClientId', game.ownerClientId))
+		.withIndex('by_game', (q) => q.eq('gameId', gameId))
 		.collect();
-	return sessions.filter((s) => s.gameId === game._id && s.status !== 'finished');
 }
 
-export function isActive(player: Doc<'players'>, now: number) {
-	return now - player.lastSeenAt <= ACTIVE_WINDOW_MS;
+export async function activeSessionsForGame(ctx: QueryCtx, game: Doc<'games'>) {
+	return (await sessionsForGame(ctx, game._id)).filter((s) => s.status !== 'finished');
+}
+
+// ---------------------------------------------------------------------------
+// Presence
+// ---------------------------------------------------------------------------
+
+/**
+ * Whether someone counts as present. During a round, everyone gets a fresh
+ * window from the round start: phones that auto-locked during a long lobby or
+ * reveal must not be written off the moment the next round begins.
+ */
+export function isActive(lastSeenAt: number | undefined, now: number, roundStartedAt?: number) {
+	const since = Math.max(lastSeenAt ?? 0, roundStartedAt ?? 0);
+	return now - since <= ACTIVE_WINDOW_MS;
+}
+
+export async function touchPresence(
+	ctx: MutationCtx,
+	sessionId: Id<'sessions'>,
+	clientId: string,
+	role: 'host' | 'player',
+	playerId?: Id<'players'>
+) {
+	const now = Date.now();
+	const existing = await ctx.db
+		.query('presence')
+		.withIndex('by_session_client', (q) => q.eq('sessionId', sessionId).eq('clientId', clientId))
+		.unique();
+	if (existing) await ctx.db.patch(existing._id, { lastSeenAt: now });
+	else await ctx.db.insert('presence', { sessionId, clientId, role, playerId, lastSeenAt: now });
+	return now;
+}
+
+/** Last heartbeat per clientId for the whole session (host view and server checks only). */
+export async function presenceBySession(ctx: QueryCtx, sessionId: Id<'sessions'>) {
+	const rows = await ctx.db
+		.query('presence')
+		.withIndex('by_session', (q) => q.eq('sessionId', sessionId))
+		.collect();
+	return new Map(rows.map((r) => [r.clientId, r.lastSeenAt]));
+}
+
+/** Only the host's row, so player screens aren't re-run by other players' heartbeats. */
+export async function hostLastSeenAt(ctx: QueryCtx, session: Doc<'sessions'>) {
+	const row = await ctx.db
+		.query('presence')
+		.withIndex('by_session_client', (q) =>
+			q.eq('sessionId', session._id).eq('clientId', session.hostClientId)
+		)
+		.unique();
+	return row?.lastSeenAt ?? session.createdAt;
 }
 
 // ---------------------------------------------------------------------------
@@ -188,16 +238,23 @@ async function cancelScheduledReveal(ctx: MutationCtx, session: Doc<'sessions'>)
 	if (job && job.state.kind === 'pending') await ctx.scheduler.cancel(job._id);
 }
 
-/** Reveals early when every active player has answered the current round. */
+/**
+ * Reveals early when every active player has answered the current round.
+ * Needs at least one answer, so a room of locked phones doesn't reveal an
+ * empty round; if everyone who answered has since gone idle, it still reveals.
+ */
 export async function revealIfEveryoneAnswered(ctx: MutationCtx, session: Doc<'sessions'>) {
 	if (session.status !== 'playing') return false;
 	const now = Date.now();
-	const players = await listPlayers(ctx, session._id);
-	const active = players.filter((p) => isActive(p, now));
-	if (active.length === 0) return false;
 	const guesses = await listRoundGuesses(ctx, session._id, session.currentRoundIndex);
+	if (guesses.length === 0) return false;
 	const answered = new Set(guesses.map((g) => g.playerId));
-	if (!active.every((p) => answered.has(p._id))) return false;
+	const players = await listPlayers(ctx, session._id);
+	const seen = await presenceBySession(ctx, session._id);
+	const waitingOn = players.filter(
+		(p) => !answered.has(p._id) && isActive(seen.get(p.clientId), now, session.roundStartedAt)
+	);
+	if (waitingOn.length > 0) return false;
 	await revealRound(ctx, session);
 	return true;
 }
@@ -226,7 +283,8 @@ export interface StandingEntry {
 	/** Rank before the current round was scored (only while revealing). */
 	previousRank: number | null;
 	answered: boolean;
-	active: boolean;
+	/** Recently seen (host view only; null in player views, which don't track presence). */
+	active: boolean | null;
 	joinedAt: number;
 }
 
@@ -257,7 +315,7 @@ export interface RevealedAnswer {
  * Session data that is safe to show to everyone. Never includes `hostClientId`
  * or answers.
  */
-export function publicSession(session: Doc<'sessions'>, now: number) {
+export function publicSession(session: Doc<'sessions'>, now: number, hostSeenAt: number) {
 	return {
 		_id: session._id,
 		code: session.code,
@@ -273,13 +331,24 @@ export function publicSession(session: Doc<'sessions'>, now: number) {
 		scoringPreset: session.settings.scoring.preset,
 		hostPlays: session.settings.hostPlays,
 		/** False when the host screen hasn't sent a heartbeat recently (the game is paused). */
-		hostActive: now - (session.hostLastSeenAt ?? session.createdAt) <= ACTIVE_WINDOW_MS
+		hostActive: isActive(hostSeenAt, now)
 	};
 }
 
-/** Builds standings, current-round results and the answer (only once revealed). */
-export async function buildSessionView(ctx: QueryCtx, session: Doc<'sessions'>, now: number) {
+/**
+ * Builds standings, current-round results and the answer (only once revealed).
+ * `withPresence` adds per-player activity (host view); player views skip it so
+ * other players' heartbeats don't re-run their subscriptions.
+ */
+export async function buildSessionView(
+	ctx: QueryCtx,
+	session: Doc<'sessions'>,
+	now: number,
+	{ withPresence }: { withPresence: boolean }
+) {
 	const players = await listPlayers(ctx, session._id);
+	const seen = withPresence ? await presenceBySession(ctx, session._id) : null;
+	const hostSeenAt = seen?.get(session.hostClientId) ?? (await hostLastSeenAt(ctx, session));
 	const inRound = session.status === 'playing' || session.status === 'reveal';
 	const revealed = session.status === 'reveal';
 	const guesses = inRound
@@ -292,10 +361,28 @@ export async function buildSessionView(ctx: QueryCtx, session: Doc<'sessions'>, 
 		const g = guessByPlayer.get(p._id);
 		return g ? (g.locationScore ?? 0) + (g.yearScore ?? 0) : 0;
 	};
+	// Standings as they were before this round was scored, for the up/down arrows.
+	// Mirrors `revealRound`: non-answerers were charged the elapsed time. Hidden
+	// after round 1, where "before" is just join order.
 	const previousRanks = new Map<Id<'players'>, number>();
-	if (revealed) {
+	if (revealed && session.currentRoundIndex > 0) {
+		const revealedAt = session.revealedAt ?? now;
+		const elapsed = Math.max(
+			0,
+			Math.min(revealedAt, session.roundEndsAt ?? revealedAt) -
+				(session.roundStartedAt ?? revealedAt)
+		);
+		const roundTimeOf = (p: Doc<'players'>) => {
+			const g = guessByPlayer.get(p._id);
+			if (g) return g.responseMs;
+			return p.joinedAt <= revealedAt ? elapsed : 0;
+		};
 		[...players]
-			.map((p) => ({ ...p, totalScore: p.totalScore - roundScoreOf(p) }))
+			.map((p) => ({
+				...p,
+				totalScore: p.totalScore - roundScoreOf(p),
+				totalResponseMs: p.totalResponseMs - roundTimeOf(p)
+			}))
 			.sort(compareStandings)
 			.forEach((p, i) => previousRanks.set(p._id, i + 1));
 	}
@@ -308,7 +395,13 @@ export async function buildSessionView(ctx: QueryCtx, session: Doc<'sessions'>, 
 		roundScore: revealed ? roundScoreOf(p) : null,
 		previousRank: revealed ? (previousRanks.get(p._id) ?? null) : null,
 		answered: guessByPlayer.has(p._id),
-		active: now - p.lastSeenAt <= ACTIVE_WINDOW_MS,
+		active: seen
+			? isActive(
+					seen.get(p.clientId),
+					now,
+					session.status === 'playing' ? session.roundStartedAt : undefined
+				)
+			: null,
 		joinedAt: p.joinedAt
 	}));
 
@@ -362,11 +455,11 @@ export async function buildSessionView(ctx: QueryCtx, session: Doc<'sessions'>, 
 	}
 
 	return {
-		session: publicSession(session, now),
+		session: publicSession(session, now, hostSeenAt),
 		standings,
 		playerCount: players.length,
 		answeredCount: guesses.length,
-		activeCount: standings.filter((s) => s.active).length,
+		activeCount: seen ? standings.filter((s) => s.active).length : null,
 		round,
 		guessByPlayer
 	};

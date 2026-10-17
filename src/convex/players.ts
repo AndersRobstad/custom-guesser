@@ -7,7 +7,8 @@ import {
 	fail,
 	listPlayers,
 	revealIfEveryoneAnswered,
-	sessionsForCode
+	sessionsForCode,
+	touchPresence
 } from './model';
 
 async function findPlayer(ctx: QueryCtx, sessionId: Doc<'sessions'>['_id'], clientId: string) {
@@ -42,7 +43,10 @@ export const join = mutation({
 		}
 
 		const existing = await findPlayer(ctx, open._id, clientId);
-		if (existing) return { sessionId: open._id, playerId: existing._id, code: open.code };
+		if (existing) {
+			await touchPresence(ctx, open._id, clientId, 'player', existing._id);
+			return { sessionId: open._id, playerId: existing._id, code: open.code };
+		}
 
 		if (clientId === open.hostClientId && !open.settings.hostPlays)
 			fail('Du er vert for dette spillet og kan ikke spille med selv.');
@@ -62,9 +66,9 @@ export const join = mutation({
 			nameKey: key,
 			totalScore: 0,
 			totalResponseMs: 0,
-			joinedAt: now,
-			lastSeenAt: now
+			joinedAt: now
 		});
+		await touchPresence(ctx, open._id, clientId, 'player', playerId);
 		return { sessionId: open._id, playerId, code: open.code };
 	}
 });
@@ -73,9 +77,10 @@ export const join = mutation({
 export const heartbeat = mutation({
 	args: { sessionId: v.id('sessions'), clientId: v.string() },
 	handler: async (ctx, { sessionId, clientId }) => {
-		const now = Date.now();
 		const player = await findPlayer(ctx, sessionId, clientId);
-		if (player) await ctx.db.patch(player._id, { lastSeenAt: now });
+		const now = player
+			? await touchPresence(ctx, sessionId, clientId, 'player', player._id)
+			: Date.now();
 		return { serverNow: now, known: !!player };
 	}
 });
@@ -124,7 +129,7 @@ export const submitGuess = mutation({
 			submittedAt: now,
 			responseMs: Math.max(0, now - (session.roundStartedAt ?? now))
 		});
-		await ctx.db.patch(player._id, { lastSeenAt: now });
+		await touchPresence(ctx, session._id, args.clientId, 'player', player._id);
 		await revealIfEveryoneAnswered(ctx, session);
 	}
 });
@@ -147,10 +152,13 @@ export const state = query({
 				break;
 			}
 		}
-		session ??= sessions.find((s) => s.status !== 'finished');
+		// Not a player: show the open session (to join it), else the latest one (it's over).
+		session ??= sessions.find((s) => s.status !== 'finished') ?? sessions[0];
 		if (!session) return null;
 
-		const { guessByPlayer, ...view } = await buildSessionView(ctx, session, Date.now());
+		const { guessByPlayer, ...view } = await buildSessionView(ctx, session, Date.now(), {
+			withPresence: false
+		});
 		const myGuess = me ? guessByPlayer.get(me._id) : undefined;
 		const myStanding = me ? view.standings.find((s) => s.playerId === me._id) : undefined;
 

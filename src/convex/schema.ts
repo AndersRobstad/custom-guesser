@@ -41,7 +41,6 @@ export default defineSchema({
 		revealedAt: v.optional(v.number()),
 		createdAt: v.number(),
 		finishedAt: v.optional(v.number()),
-		hostLastSeenAt: v.optional(v.number()),
 		/** Snapshot taken when the session is created, so editing the game can't break a running session. */
 		title: v.string(),
 		settings: settingsValidator,
@@ -49,7 +48,8 @@ export default defineSchema({
 		scheduledRevealId: v.optional(v.id('_scheduled_functions'))
 	})
 		.index('by_code', ['code'])
-		.index('by_host', ['hostClientId']),
+		.index('by_host', ['hostClientId'])
+		.index('by_game', ['gameId']),
 
 	players: defineTable({
 		sessionId: v.id('sessions'),
@@ -60,7 +60,22 @@ export default defineSchema({
 		totalScore: v.number(),
 		/** Sum of response times, used to break ties. */
 		totalResponseMs: v.number(),
-		joinedAt: v.number(),
+		joinedAt: v.number()
+	})
+		.index('by_session', ['sessionId'])
+		.index('by_session_client', ['sessionId', 'clientId']),
+
+	/**
+	 * Heartbeats (`lastSeenAt`) for players and the host. Kept out of `players`
+	 * and `sessions` on purpose: every heartbeat would otherwise invalidate every
+	 * live screen's query. Only the host view and the "everyone answered" check
+	 * read the whole table; players only read the host's row.
+	 */
+	presence: defineTable({
+		sessionId: v.id('sessions'),
+		clientId: v.string(),
+		role: v.union(v.literal('host'), v.literal('player')),
+		playerId: v.optional(v.id('players')),
 		lastSeenAt: v.number()
 	})
 		.index('by_session', ['sessionId'])

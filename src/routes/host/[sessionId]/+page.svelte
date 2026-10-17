@@ -24,12 +24,14 @@
 	const status = $derived(data?.session.status);
 	const sessionId = $derived(data?.session._id);
 	const colors = $derived(playerColors(data?.standings ?? []));
+	const finished = $derived(status === 'finished');
+	const roundIndex = $derived(data?.session.currentRoundIndex ?? 0);
 
 	let pending = $state<'start' | 'reveal' | 'next' | 'end' | 'restart' | null>(null);
 	let confirmEnd = $state(false);
 
 	$effect(() => {
-		if (!sessionId || status === 'finished') return;
+		if (!sessionId || finished) return;
 		const id = sessionId;
 		return startHeartbeat(() =>
 			client.mutation(api.sessions.hostHeartbeat, { sessionId: id, clientId })
@@ -49,8 +51,11 @@
 
 	const hostArgs = () => ({ sessionId: sessionId!, clientId });
 	const start = () => run('start', () => client.mutation(api.sessions.start, hostArgs()));
-	const reveal = () => run('reveal', () => client.mutation(api.sessions.revealNow, hostArgs()));
-	const next = () => run('next', () => client.mutation(api.sessions.next, hostArgs()));
+	// Passing the round on screen makes a click that races the timer a harmless no-op.
+	const reveal = () =>
+		run('reveal', () => client.mutation(api.sessions.revealNow, { ...hostArgs(), roundIndex }));
+	const next = () =>
+		run('next', () => client.mutation(api.sessions.next, { ...hostArgs(), roundIndex }));
 	const end = () =>
 		run('end', async () => {
 			await client.mutation(api.sessions.end, hostArgs());
@@ -68,6 +73,7 @@
 	function onkeydown(e: KeyboardEvent) {
 		if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
 		if (e.key !== ' ' && e.key !== 'Enter') return;
+		if (e.repeat) return;
 		if (pending || confirmEnd || !data) return;
 		if (e.target instanceof HTMLButtonElement || e.target instanceof HTMLAnchorElement) return;
 		// Space/Enter advances the game like a presenter clicker.

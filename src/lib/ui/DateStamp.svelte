@@ -16,7 +16,7 @@
 	}: {
 		/** Digits, ':' and '.' are rendered; anything else becomes a blank cell. */
 		value: string | number;
-		/** Accessible text, e.g. "År 2004". Defaults to the value. */
+		/** Accessible text, e.g. "År 2004". Defaults to the value; '' marks it decorative. */
 		label?: string;
 		size?: 'sm' | 'md' | 'lg' | 'xl' | 'mega';
 		dim?: boolean;
@@ -37,8 +37,9 @@
 </script>
 
 <span
-	role="img"
-	aria-label={label ?? String(value)}
+	role={label === '' ? undefined : 'img'}
+	aria-label={label === '' ? undefined : (label ?? String(value))}
+	aria-hidden={label === '' ? 'true' : undefined}
 	class={cn(
 		'relative inline-block leading-none font-bold whitespace-pre italic select-none',
 		sizes[size],

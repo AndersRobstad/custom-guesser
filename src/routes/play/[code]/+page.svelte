@@ -25,6 +25,7 @@
 	const joined = $derived(!!data?.me);
 	const sessionId = $derived(data?.session._id);
 	const colors = $derived(playerColors(data?.standings ?? []));
+	const finished = $derived(status === 'finished');
 
 	// Not a player in this game yet → go pick a name (unless it's already over).
 	$effect(() => {
@@ -35,7 +36,7 @@
 
 	// Presence + server clock sync while we're in the game.
 	$effect(() => {
-		if (!sessionId || !joined || status === 'finished') return;
+		if (!sessionId || !joined || finished) return;
 		const id = sessionId;
 		return startHeartbeat(() =>
 			client.mutation(api.players.heartbeat, { sessionId: id, clientId })
