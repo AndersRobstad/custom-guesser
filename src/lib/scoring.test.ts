@@ -27,7 +27,9 @@ describe('haversineKm', () => {
 	it('antipodes are about 20 015 km apart', () => {
 		expect(Math.abs(haversineKm(0, 0, 0, 180) - 20015)).toBeLessThan(1);
 		expect(Math.abs(haversineKm(90, 0, -90, 0) - 20015)).toBeLessThan(1);
-		expect(Math.abs(haversineKm(OSLO.lat, OSLO.lng, -OSLO.lat, OSLO.lng - 180) - 20015)).toBeLessThan(1);
+		expect(
+			Math.abs(haversineKm(OSLO.lat, OSLO.lng, -OSLO.lat, OSLO.lng - 180) - 20015)
+		).toBeLessThan(1);
 	});
 
 	it('is symmetric', () => {

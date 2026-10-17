@@ -73,7 +73,8 @@ export function haversineKm(lat1: number, lng1: number, lat2: number, lng2: numb
 	const dLat = toRad(lat2 - lat1);
 	const dLng = toRad(lng2 - lng1);
 	const a =
-		Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+		Math.sin(dLat / 2) ** 2 +
+		Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
 	// Floating point can push `a` a hair outside [0, 1] near antipodes.
 	const clamped = Math.min(1, Math.max(0, a));
 	return 2 * EARTH_RADIUS_KM * Math.atan2(Math.sqrt(clamped), Math.sqrt(1 - clamped));
@@ -114,7 +115,11 @@ export interface GuessScore {
 	total: number;
 }
 
-export function scoreGuess(guess: GuessInput, answer: GuessInput, params: ScoringParams): GuessScore {
+export function scoreGuess(
+	guess: GuessInput,
+	answer: GuessInput,
+	params: ScoringParams
+): GuessScore {
 	const distanceKm = haversineKm(guess.lat, guess.lng, answer.lat, answer.lng);
 	const yearDiff = Math.abs(guess.year - answer.year);
 	const loc = locationScore(distanceKm, params);
