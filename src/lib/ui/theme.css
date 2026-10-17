@@ -1,0 +1,126 @@
+/*
+ * Glimt design tokens.
+ *
+ * Raw palette lives in --glimt-* custom properties so a theme can be swapped by
+ * redefining them (e.g. under [data-theme='…']). Tailwind utilities are mapped
+ * to the semantic names below via `@theme inline`, so components only ever use
+ * semantic classes like `bg-surface`, `text-muted`, `border-line`, `text-stamp`.
+ */
+
+:root {
+	/* Cyanotype blues */
+	--glimt-bg: #0f2a6e;
+	--glimt-surface: #163886;
+	--glimt-raised: #1f4698;
+	--glimt-sunken: #0b2160;
+	--glimt-line: rgb(238 243 255 / 0.14);
+	--glimt-line-strong: rgb(238 243 255 / 0.32);
+
+	/* Paper */
+	--glimt-fg: #eef3ff;
+	--glimt-muted: #a9bbe6;
+	--glimt-subtle: #7f95cc;
+
+	/* Primary action = a white print on blue */
+	--glimt-primary: #eef3ff;
+	--glimt-primary-fg: #0f2a6e;
+	--glimt-primary-hover: #ffffff;
+
+	/* Date-stamp orange: only for time (years, countdowns) and the answer */
+	--glimt-stamp: #ff6a13;
+	--glimt-stamp-glow: rgb(255 106 19 / 0.55);
+	--glimt-stamp-ghost: rgb(255 106 19 / 0.1);
+
+	/* Feedback */
+	--glimt-success: #3ddc97;
+	--glimt-warning: #ffd23f;
+	--glimt-danger: #ff5a6e;
+	--glimt-focus: #ffd23f;
+
+	/* Shape */
+	--glimt-radius-sm: 8px;
+	--glimt-radius-md: 14px;
+	--glimt-radius-lg: 22px;
+	--glimt-radius-print: 3px;
+}
+
+@theme inline {
+	--color-bg: var(--glimt-bg);
+	--color-surface: var(--glimt-surface);
+	--color-raised: var(--glimt-raised);
+	--color-sunken: var(--glimt-sunken);
+	--color-line: var(--glimt-line);
+	--color-line-strong: var(--glimt-line-strong);
+	--color-fg: var(--glimt-fg);
+	--color-muted: var(--glimt-muted);
+	--color-subtle: var(--glimt-subtle);
+	--color-primary: var(--glimt-primary);
+	--color-primary-fg: var(--glimt-primary-fg);
+	--color-primary-hover: var(--glimt-primary-hover);
+	--color-stamp: var(--glimt-stamp);
+	--color-stamp-ghost: var(--glimt-stamp-ghost);
+	--color-success: var(--glimt-success);
+	--color-warning: var(--glimt-warning);
+	--color-danger: var(--glimt-danger);
+
+	--radius-sm: var(--glimt-radius-sm);
+	--radius-md: var(--glimt-radius-md);
+	--radius-lg: var(--glimt-radius-lg);
+	--radius-print: var(--glimt-radius-print);
+}
+
+@theme {
+	--font-sans: 'Schibsted Grotesk Variable', ui-sans-serif, system-ui, sans-serif;
+	--font-stamp: 'DSEG7 Classic', ui-monospace, monospace;
+
+	/* Type scale (classic 12/14/16/18/21/24/36/48/60/72/96) */
+	--text-2xs: 0.75rem;
+	--text-2xs--line-height: 1rem;
+	--text-display: 4.5rem;
+	--text-display--line-height: 1;
+	--text-display--letter-spacing: -0.03em;
+	--text-mega: 6rem;
+	--text-mega--line-height: 1;
+	--text-mega--letter-spacing: -0.04em;
+
+	--animate-pop-in: pop-in 320ms cubic-bezier(0.2, 1.4, 0.4, 1) both;
+	--animate-stamp-in: stamp-in 700ms cubic-bezier(0.2, 0.9, 0.3, 1) both;
+	--animate-rise: rise 420ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+
+	@keyframes pop-in {
+		from {
+			opacity: 0;
+			transform: scale(0.6);
+		}
+		to {
+			opacity: 1;
+			transform: scale(1);
+		}
+	}
+
+	@keyframes stamp-in {
+		0% {
+			opacity: 0;
+			filter: blur(6px);
+			transform: scale(1.25);
+		}
+		60% {
+			opacity: 1;
+			filter: blur(0);
+		}
+		100% {
+			transform: scale(1);
+		}
+	}
+
+	@keyframes rise {
+		from {
+			opacity: 0;
+			transform: translateY(12px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
+	}
+}

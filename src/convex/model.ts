@@ -207,6 +207,7 @@ export interface StandingEntry {
 	previousRank: number | null;
 	answered: boolean;
 	active: boolean;
+	joinedAt: number;
 }
 
 export interface RoundResult {
@@ -285,7 +286,8 @@ export async function buildSessionView(ctx: QueryCtx, session: Doc<'sessions'>, 
 		roundScore: revealed ? roundScoreOf(p) : null,
 		previousRank: revealed ? (previousRanks.get(p._id) ?? null) : null,
 		answered: guessByPlayer.has(p._id),
-		active: now - p.lastSeenAt <= ACTIVE_WINDOW_MS
+		active: now - p.lastSeenAt <= ACTIVE_WINDOW_MS,
+		joinedAt: p.joinedAt
 	}));
 
 	let round: {
