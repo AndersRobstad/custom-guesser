@@ -26,6 +26,9 @@ export default ts.config(
 		rules: {
 			// TypeScript already reports undefined identifiers, with better type info.
 			'no-undef': 'off',
+			// The app is always served from the site root (no `paths.base`), so plain
+			// string hrefs/goto are fine and keep generic components like Button simple.
+			'svelte/no-navigation-without-resolve': 'off',
 			'@typescript-eslint/no-unused-vars': [
 				'error',
 				{ argsIgnorePattern: '^_', varsIgnorePattern: '^_' }

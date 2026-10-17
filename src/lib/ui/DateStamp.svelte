@@ -24,8 +24,8 @@
 		class?: string;
 	} = $props();
 
-	const text = $derived(String(value).replace(/[^0-9:.\-]/g, '!'));
-	const ghost = $derived(text.replace(/[0-9\-!]/g, '8'));
+	const text = $derived(String(value).replace(/[^0-9:.-]/g, '!'));
+	const ghost = $derived(text.replace(/[0-9!-]/g, '8'));
 
 	const sizes = {
 		sm: 'text-lg',
