@@ -5,7 +5,7 @@
 # which requires PUBLIC_CONVEX_URL to be set in the Vercel environment.
 set -e
 if [ -n "$CONVEX_DEPLOY_KEY" ]; then
-	npx convex deploy --cmd 'npm run build'
+	npx convex deploy --cmd 'npm run build' --cmd-url-env-var-name PUBLIC_CONVEX_URL
 else
 	echo "CONVEX_DEPLOY_KEY not set; building against PUBLIC_CONVEX_URL=$PUBLIC_CONVEX_URL"
 	npm run build
