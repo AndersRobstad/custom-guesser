@@ -18,7 +18,7 @@
 		"format": "prettier --write .",
 		"typecheck": "tsc --noEmit -p tsconfig.json",
 		"convex:dev": "convex dev",
-		"fixtures": "node scripts/generate-fixtures.mjs"
+		"fixtures": "node scripts/generate-fixtures.mjs && node scripts/generate-video-fixture.mjs"
 	},
 	"devDependencies": {
 		"@edge-runtime/vm": "^5.0.0",
