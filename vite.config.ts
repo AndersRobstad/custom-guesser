@@ -17,8 +17,10 @@ export default defineConfig({
 		})
 	],
 	optimizeDeps: {
-		// Pre-bundle client-only deps up front so the first visit to a game screen
-		// doesn't trigger a dev-server re-optimization and page reload.
+		// Crawl every route at dev-server start and pre-bundle client-only deps, so
+		// the first visit to a screen never triggers a re-optimization + full page
+		// reload (which would wipe unsaved builder drafts mid-session).
+		entries: ['src/routes/**/+*.svelte', 'src/lib/**/*.svelte'],
 		include: [
 			'leaflet',
 			'qrcode',
