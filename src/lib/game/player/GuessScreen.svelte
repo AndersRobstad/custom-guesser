@@ -5,7 +5,8 @@
 	import { GUESS_GRACE_MS } from '$lib/game';
 	import { clock } from '$lib/client/clock.svelte';
 	import { errorMessage } from '$lib/client/errors';
-	import MapView, { type LatLng } from '$lib/map/MapView.svelte';
+	import MapView from '$lib/map/MapView.svelte';
+	import type { LatLng } from '$lib/map/types';
 	import { Button, Dialog, toast } from '$lib/ui';
 	import RoundMedia from '../RoundMedia.svelte';
 	import YearPicker from '../YearPicker.svelte';

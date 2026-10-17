@@ -1,8 +1,3 @@
-<script lang="ts" module>
-	// Types live in a plain module so `.ts` files can import them; re-exported for convenience.
-	export type { LatLng, MapLine, MapMarker } from './types';
-</script>
-
 <script lang="ts">
 	import 'leaflet/dist/leaflet.css';
 	import type * as Leaflet from 'leaflet';

@@ -1,5 +1,6 @@
 <script lang="ts">
-	import MapView, { type MapLine, type MapMarker } from '$lib/map/MapView.svelte';
+	import MapView from '$lib/map/MapView.svelte';
+	import type { MapLine, MapMarker } from '$lib/map/types';
 	import { initials } from '$lib/ui';
 	import type { RevealedAnswer, RoundResult } from './types';
 

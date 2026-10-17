@@ -4,3 +4,7 @@ src/convex/_generated/
 build/
 test-results/
 playwright-report/
+.convex/
+.vercel/
+docs/screenshots/
+tests/fixtures/
