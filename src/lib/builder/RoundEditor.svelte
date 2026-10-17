@@ -116,11 +116,12 @@
 </script>
 
 {#snippet videoPlayer()}
+	<!-- The host's own clip; there are no captions to offer. -->
+	<!-- svelte-ignore a11y_media_has_caption -->
 	<video
 		src={draft.videoUrl}
 		poster={draft.previewUrl ?? undefined}
 		controls
-		muted
 		playsinline
 		preload="metadata"
 		class="h-full w-full bg-sunken object-contain"
