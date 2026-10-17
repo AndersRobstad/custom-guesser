@@ -1,0 +1,10 @@
+package-lock.json
+src/convex/_generated/
+.svelte-kit/
+build/
+test-results/
+playwright-report/
+.convex/
+.vercel/
+docs/screenshots/
+tests/fixtures/
