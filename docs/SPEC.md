@@ -190,3 +190,11 @@ vert-fane og to «mobil»-faner som deltakere.
 - **`sessions` har i tillegg indeksen `by_game`.**
 - **«Avslør nå» og «Neste» sender med runden som vises på skjermen.** Hvis timeren eller en annen
   fane allerede har gjort jobben, skjer ingenting.
+
+### 7. Rekkefølge på bildene
+
+- Rekkefølgen man laster opp i er ikke låst: rundene kan dras eller flyttes opp/ned i spillbyggeren,
+  og knappen **«Stokk rekkefølgen»** blander dem én gang (lagres som ny rekkefølge).
+- Innstillingen **«Tilfeldig rekkefølge hver gang»** (`settings.shuffleRounds`, av som standard)
+  stokker rundene på nytt for hver økt. Stokkingen skjer på serveren når økten opprettes og lagres
+  i øktens `roundIds`, så alle spillerne får nøyaktig samme rekkefølge.

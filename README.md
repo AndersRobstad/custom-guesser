@@ -40,18 +40,18 @@ lagring).
 
 ## Skript
 
-| Kommando              | Hva den gjør                                                                       |
-| --------------------- | ---------------------------------------------------------------------------------- |
-| `npm run dev`         | Utviklingsserver                                                                   |
-| `npm run build`       | Produksjonsbygg                                                                    |
-| `npm test`            | Alle Vitest-tester (enhet + `convex-test`)                                         |
-| `npm run test:unit`   | Bare poengberegningen (`src/lib/scoring.test.ts`)                                  |
-| `npm run test:convex` | Bare backend-testene (`src/convex/game.test.ts`)                                   |
-| `npm run test:e2e`    | Playwright mot lokal Convex. Starter `convex dev` og Vite selv hvis de ikke kjører |
-| `npm run check`       | `svelte-check`                                                                     |
-| `npm run typecheck`   | `tsc --noEmit`                                                                     |
-| `npm run lint`        | Prettier + ESLint                                                                  |
-| `npm run fixtures`    | Lager testbildene i `tests/fixtures/` på nytt                                      |
+| Kommando              | Hva den gjør                                                                                                              |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `npm run dev`         | Utviklingsserver                                                                                                          |
+| `npm run build`       | Produksjonsbygg                                                                                                           |
+| `npm test`            | Alle Vitest-tester (enhet + `convex-test`)                                                                                |
+| `npm run test:unit`   | Bare poengberegningen (`src/lib/scoring.test.ts`)                                                                         |
+| `npm run test:convex` | Bare backend-testene (`src/convex/game.test.ts`)                                                                          |
+| `npm run test:e2e`    | Playwright mot lokal Convex og et produksjonsbygg (`vite build` + `vite preview`). Starter begge selv hvis de ikke kjører |
+| `npm run check`       | `svelte-check`                                                                                                            |
+| `npm run typecheck`   | `tsc --noEmit`                                                                                                            |
+| `npm run lint`        | Prettier + ESLint                                                                                                         |
+| `npm run fixtures`    | Lager testbildene i `tests/fixtures/` på nytt                                                                             |
 
 Første gang du kjører E2E: `npx playwright install --with-deps chromium`. E2E-testen mocker
 kartfliser og stedssøk, så den trenger ikke nett. Skjermbilder fra kjøringen havner i
