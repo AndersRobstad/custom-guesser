@@ -170,3 +170,19 @@ Vercel (personlig konto) for frontend, Convex prod-deployment for backend. Deplo
 
 I tillegg til Playwright-testen skal et komplett spill kjøres manuelt i nettleseren med én
 vert-fane og to «mobil»-faner som deltakere.
+
+### 6. Tekniske avvik fra grunnspesifikasjonen
+
+- **`lastSeenAt` ligger i en egen `presence`-tabell** (også for verten), ikke på `players`.
+  Ellers ville hver heartbeat (hvert 15. sekund per spiller) kjøre alle åpne skjermers
+  spørringer på nytt. Spillerne leser bare vertens rad; vertens skjerm og «alle har svart»-sjekken
+  leser hele tabellen.
+- **«Aktiv» måles fra rundestart:** En spiller regnes som aktiv hvis hen har sendt heartbeat de
+  siste 45 sekundene _eller_ runden startet for under 45 sekunder siden. Mobiler som låste seg i
+  en lang lobby blir dermed ikke avskrevet i det runden starter. En runde uten svar avsløres aldri
+  automatisk før tiden går ut.
+- **Koder gjenbrukes tidligst 24 timer etter at en økt er ferdig** (strengere enn «unik blant økter
+  som ikke er ferdige»), så gamle lenker til `/play/KODE` fortsatt viser riktig spill.
+- **`sessions` har i tillegg indeksen `by_game`.**
+- **«Avslør nå» og «Neste» sender med runden som vises på skjermen.** Hvis timeren eller en annen
+  fane allerede har gjort jobben, skjer ingenting.
