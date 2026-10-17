@@ -1,6 +1,6 @@
 import { v } from 'convex/values';
 import { internalMutation, mutation, query } from './_generated/server';
-import { CODE_REUSE_COOLDOWN_MS, generateCode } from '../lib/game';
+import { CODE_REUSE_COOLDOWN_MS, generateCode, shuffled } from '../lib/game';
 import {
 	beginRound,
 	buildSessionView,
@@ -18,7 +18,10 @@ import {
 
 const MAX_CODE_ATTEMPTS = 50;
 
-/** Starts a new session (lobby) for one of the host's games. */
+/**
+ * Starts a new session (lobby) for one of the host's games. With
+ * `settings.shuffleRounds` the rounds are shuffled for this session only.
+ */
 export const create = mutation({
 	args: { gameId: v.id('games'), clientId: v.string() },
 	handler: async (ctx, { gameId, clientId }) => {
@@ -46,7 +49,10 @@ export const create = mutation({
 			createdAt: now,
 			title: game.title,
 			settings: game.settings,
-			roundIds: rounds.map((r) => r._id)
+			// The order is fixed here, server-side, so every player sees the same sequence.
+			roundIds: game.settings.shuffleRounds
+				? shuffled(rounds.map((r) => r._id))
+				: rounds.map((r) => r._id)
 		});
 		await touchPresence(ctx, sessionId, clientId, 'host');
 		return { sessionId, code };

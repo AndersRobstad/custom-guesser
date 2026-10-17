@@ -18,7 +18,9 @@ export const settingsValidator = v.object({
 	yearMin: v.number(),
 	yearMax: v.number(),
 	scoring: scoringValidator,
-	hostPlays: v.boolean()
+	hostPlays: v.boolean(),
+	/** Shuffle the rounds for every new session (all players share that session's order). */
+	shuffleRounds: v.optional(v.boolean())
 });
 
 export const sessionStatusValidator = v.union(

@@ -135,6 +135,7 @@ describe('games', () => {
 			yearMin: 1999,
 			yearMax: 2026,
 			hostPlays: false,
+			shuffleRounds: false,
 			scoring: { preset: 'europe', perfectKm: 5, kKm: 500, kYear: 4 }
 		});
 		expect(await t.query(api.games.listMine, { clientId: HOST })).toHaveLength(1);
@@ -878,5 +879,58 @@ describe('review regressions', () => {
 		await t.mutation(api.sessions.end, { sessionId, clientId: HOST });
 		const view = await t.query(api.players.state, { code, clientId: 'stranger' });
 		expect(view).toMatchObject({ me: null, session: { status: 'finished' } });
+	});
+});
+
+describe('round order', () => {
+	async function setShuffle(t: T, gameId: Id<'games'>, shuffleRounds: boolean) {
+		const game = await t.query(api.games.get, { gameId, clientId: HOST });
+		await t.mutation(api.games.update, {
+			gameId,
+			clientId: HOST,
+			settings: { ...game!.game.settings, shuffleRounds }
+		});
+	}
+
+	it('keeps the saved order when shuffling is off', async () => {
+		const t = setup();
+		const { gameId, roundIds } = await createGame(t, { rounds: 3 });
+		const { sessionId } = await t.mutation(api.sessions.create, { gameId, clientId: HOST });
+		expect((await getSession(t, sessionId))?.roundIds).toEqual(roundIds);
+	});
+
+	it('shuffles per session on the server, so every player gets the same order', async () => {
+		const t = setup();
+		const { gameId, roundIds } = await createGame(t, { rounds: 3 });
+		await setShuffle(t, gameId, true);
+		// 6 randoms for the join code, then Fisher–Yates picks j=0 (i=2) and j=1 (i=1) → reversed.
+		const sequence = [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.1, 0.9];
+		vi.spyOn(Math, 'random').mockImplementation(() => sequence.shift() ?? 0.5);
+		const { sessionId, code } = await t.mutation(api.sessions.create, { gameId, clientId: HOST });
+		vi.restoreAllMocks();
+		expect((await getSession(t, sessionId))?.roundIds).toEqual([...roundIds].reverse());
+
+		// The saved game order is untouched.
+		const game = await t.query(api.games.get, { gameId, clientId: HOST });
+		expect(game!.rounds.map((r) => r._id)).toEqual(roundIds);
+
+		// Round 1 of this session is the game's last round, for everyone.
+		await join(t, code, 'p1', 'Kari');
+		await join(t, code, 'p2', 'Ola');
+		await t.mutation(api.sessions.start, { sessionId, clientId: HOST });
+		await t.mutation(api.sessions.revealNow, { sessionId, clientId: HOST });
+		for (const clientId of ['p1', 'p2']) {
+			const view = await t.query(api.players.state, { code, clientId });
+			expect(view?.round?.answer?.year).toBe(ROUNDS[2].answerYear);
+		}
+	});
+
+	it('lets the host reorder the saved rounds (e.g. after shuffling in the builder)', async () => {
+		const t = setup();
+		const { gameId, roundIds } = await createGame(t, { rounds: 3 });
+		const order = [roundIds[1], roundIds[2], roundIds[0]];
+		await t.mutation(api.rounds.reorder, { gameId, clientId: HOST, roundIds: order });
+		const { sessionId } = await t.mutation(api.sessions.create, { gameId, clientId: HOST });
+		expect((await getSession(t, sessionId))?.roundIds).toEqual(order);
 	});
 });

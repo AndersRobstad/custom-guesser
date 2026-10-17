@@ -182,6 +182,15 @@
 		<p class="text-sm text-muted">{presetText}</p>
 	</div>
 
+	<div data-testid="settings-shuffle">
+		<Switch
+			label="Tilfeldig rekkefølge hver gang"
+			description="Bildene stokkes på nytt hver gang du starter spillet. Alle spillerne får samme rekkefølge."
+			checked={settings.shuffleRounds ?? false}
+			onCheckedChange={(checked) => void onsave({ ...settings, shuffleRounds: checked })}
+		/>
+	</div>
+
 	<div data-testid="settings-host-plays">
 		<Switch
 			label="Verten spiller med"
