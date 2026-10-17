@@ -2,11 +2,26 @@ node_modules/
 dist/
 build/
 .svelte-kit/
-.next/
-out/
-target/
+.output
+.vercel
+.netlify
+.wrangler
 *.log
 .DS_Store
+Thumbs.db
+
+# Env
 .env
 .env.*
 !.env.example
+
+# Vite
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
+
+# Tests
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/.playwright-mcp/
