@@ -41,7 +41,8 @@ async function decode(file: Blob): Promise<ImageBitmap | HTMLImageElement> {
 	}
 }
 
-function toBlob(canvas: HTMLCanvasElement, quality: number) {
+/** Encodes the canvas as a JPEG. */
+export function toBlob(canvas: HTMLCanvasElement, quality: number) {
 	return new Promise<Blob>((resolve, reject) =>
 		canvas.toBlob(
 			(b) => (b ? resolve(b) : reject(new Error('toBlob failed'))),

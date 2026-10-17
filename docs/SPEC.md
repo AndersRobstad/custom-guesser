@@ -155,6 +155,10 @@ En runde kan være en kort video i stedet for et bilde.
   mobilen vises stillbildet med en «Spill av video»-knapp, så klippet bare lastes ned når
   spilleren vil se det. Det sparer mobildata og Convex-båndbredde (10 spillere × 20 MB = 200 MB
   per runde om alle lastet ned automatisk).
+- **Metadata fjernes før opplasting:** MP4/MOV-filer fra mobilen inneholder ofte GPS-posisjon og
+  opptaksdato. Siden spillerne får videoen under runden, nøytraliseres `udta`/`meta`/XMP-boksene
+  og tidsstemplene i nettleseren før opplasting (uten å endre filstørrelse eller offsets). WebM
+  sendes uendret; der finnes sjelden posisjon.
 - **Forhåndsutfylling:** År og sted fra metadata forhåndsutfylles bare for bilder (EXIF). For
   video må verten sette år og sted selv.
 - **Kompatibilitet:** iPhone-videoer i HEVC (`.mov`) spilles ikke av i alle nettlesere (f.eks.

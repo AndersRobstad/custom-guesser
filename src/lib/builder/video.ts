@@ -1,9 +1,11 @@
 /**
- * Video handling for the builder. Videos are uploaded as-is (no re-encoding in
- * the browser), so we only check the limits and grab a JPEG poster frame that
- * phones can show before the player taps play.
+ * Video handling for the builder. Videos are not re-encoded in the browser, so
+ * we only check the limits, strip location/date metadata (players can download
+ * the clip) and grab a JPEG poster frame that phones can show before the
+ * player taps play.
  */
-import { MAX_IMAGE_SIDE } from '$lib/client/image';
+import { MAX_IMAGE_SIDE, toBlob } from '$lib/client/image';
+import { stripVideoMetadata } from '$lib/client/video-metadata';
 import { MAX_VIDEO_BYTES, MAX_VIDEO_SECONDS, VIDEO_MIME_TYPES } from '$lib/game';
 
 export type VideoMimeType = (typeof VIDEO_MIME_TYPES)[number];
@@ -19,6 +21,7 @@ export const PLAYBACK_WARNING =
 	'Denne videoen kan kanskje ikke spilles av på alle enheter. MP4 (H.264) fungerer best.';
 const UNDECODABLE =
 	'Denne videoen kan ikke spilles av i nettleseren din, så vi kan ikke lage et stillbilde. Prøv en MP4-fil (H.264).';
+const UNREADABLE = 'Klarte ikke å lese videofilen. Prøv igjen, eller velg en annen fil.';
 
 const EXTENSION_TYPES: Record<string, VideoMimeType> = {
 	mp4: 'video/mp4',
@@ -60,7 +63,10 @@ export function formatDuration(seconds: number): string {
 }
 
 export interface PreparedVideo {
-	/** The original file, re-typed if the browser didn't know its MIME type. */
+	/**
+	 * The file to upload: the original without location/date metadata, re-typed
+	 * if the browser didn't know its MIME type.
+	 */
 	file: File;
 	duration: number;
 	poster: Blob;
@@ -110,16 +116,6 @@ async function seek(video: HTMLVideoElement, time: number) {
 	await waitFor(video, ['loadeddata', 'canplay'], () => video.readyState >= 2);
 }
 
-function toJpeg(canvas: HTMLCanvasElement, quality: number) {
-	return new Promise<Blob>((resolve, reject) =>
-		canvas.toBlob(
-			(blob) => (blob ? resolve(blob) : reject(new Error('toBlob failed'))),
-			'image/jpeg',
-			quality
-		)
-	);
-}
-
 async function grabFrame(video: HTMLVideoElement, time: number): Promise<Blob> {
 	await seek(video, time);
 	const scale = Math.min(1, MAX_IMAGE_SIDE / Math.max(video.videoWidth, video.videoHeight));
@@ -129,12 +125,31 @@ async function grabFrame(video: HTMLVideoElement, time: number): Promise<Blob> {
 	const ctx = canvas.getContext('2d');
 	if (!ctx) throw new Error('Canvas is not supported');
 	ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-	return toJpeg(canvas, 0.82);
+	return toBlob(canvas, 0.82);
 }
 
 /**
- * Checks size, type and length of a video and grabs a poster frame at
- * min(1 s, duration / 2). Throws `VideoProblem` with a Norwegian message.
+ * The video with GPS position and capture dates removed from its MP4/MOV
+ * metadata (see `stripVideoMetadata`), typed as `type`. Same size and content
+ * type as the original, so the upload limits still apply unchanged.
+ */
+async function withoutMetadata(input: File, type: VideoMimeType): Promise<File> {
+	let original: ArrayBuffer;
+	try {
+		original = await input.arrayBuffer();
+	} catch {
+		// Uploading the untouched file could reveal the answer, so don't.
+		throw new VideoProblem(UNREADABLE);
+	}
+	const { buffer } = stripVideoMetadata(original);
+	if (buffer === original && input.type === type) return input;
+	return new File([buffer], input.name, { type, lastModified: input.lastModified });
+}
+
+/**
+ * Checks size, type and length of a video, strips its location/date metadata
+ * and grabs a poster frame at min(1 s, duration / 2). Throws `VideoProblem`
+ * with a Norwegian message.
  */
 export async function prepareVideo(input: File): Promise<PreparedVideo> {
 	const type = videoMimeType(input);
@@ -145,10 +160,8 @@ export async function prepareVideo(input: File): Promise<PreparedVideo> {
 			`Videoen er ${mb} MB. Maks ${MAX_VIDEO_BYTES / 1024 / 1024} MB – prøv et kortere klipp.`
 		);
 	}
-	const file =
-		input.type === type
-			? input
-			: new File([input], input.name, { type, lastModified: input.lastModified });
+	// Stripped before the browser loads it, so the poster and duration come from the file we upload.
+	const file = await withoutMetadata(input, type);
 
 	const url = URL.createObjectURL(file);
 	const video = document.createElement('video');
