@@ -66,8 +66,9 @@
 					data-testid="game-link">{game.title}</a
 				>
 			</h2>
-			<p class="text-sm text-muted">
-				{countLabel(game.roundCount, 'bilde', 'bilder')} · {timesPlayedLabel(game.timesPlayed)}
+			<p class="flex flex-wrap gap-x-3 text-sm text-muted">
+				<span>{countLabel(game.roundCount, 'bilde', 'bilder')}</span>
+				<span>{timesPlayedLabel(game.timesPlayed)}</span>
 			</p>
 		</div>
 		<Button
@@ -94,7 +95,7 @@
 			</Button>
 			<span class="flex items-center gap-1.5 text-sm text-muted">
 				<span class="size-2 rounded-full bg-success" aria-hidden="true"></span>
-				{status} · kode
+				{status}, kode
 				<span class="font-bold tracking-widest text-fg">{game.activeSession.code}</span>
 			</span>
 		</div>
