@@ -20,9 +20,10 @@
 		class?: string;
 	} = $props();
 
-	const remainingMs = $derived(Math.max(0, endsAt - now));
-	const seconds = $derived(Math.ceil(remainingMs / 1000));
 	const total = $derived(Math.max(1, endsAt - startedAt));
+	// Clamp so clock-skew correction can never show more time than the round has (e.g. 1:01 of 1:00).
+	const remainingMs = $derived(Math.min(total, Math.max(0, endsAt - now)));
+	const seconds = $derived(Math.ceil(remainingMs / 1000));
 	const fraction = $derived(Math.min(1, remainingMs / total));
 	const urgent = $derived(seconds <= 10);
 	const display = $derived(
