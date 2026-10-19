@@ -56,6 +56,8 @@ export interface GameSettings {
 	yearMax: number;
 	scoring: ScoringSettings;
 	hostPlays: boolean;
+	/** Shuffle the rounds for every new session (see `settingsValidator`). */
+	shuffleRounds?: boolean;
 }
 
 export function defaultScoring(preset: PresetKey = DEFAULT_PRESET): ScoringSettings {

@@ -18,7 +18,12 @@ export const settingsValidator = v.object({
 	yearMin: v.number(),
 	yearMax: v.number(),
 	scoring: scoringValidator,
-	hostPlays: v.boolean()
+	hostPlays: v.boolean(),
+	/**
+	 * Shuffle the rounds for every new session. Not used yet, but production
+	 * already has games and sessions with it, so the schema must accept it.
+	 */
+	shuffleRounds: v.optional(v.boolean())
 });
 
 export const sessionStatusValidator = v.union(
