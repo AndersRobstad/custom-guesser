@@ -189,3 +189,21 @@ vert-fane og to «mobil»-faner som deltakere.
 - **`sessions` har i tillegg indeksen `by_game`.**
 - **«Avslør nå» og «Neste» sender med runden som vises på skjermen.** Hvis timeren eller en annen
   fane allerede har gjort jobben, skjer ingenting.
+
+### 7. Rekkefølge på bildene
+
+- Rekkefølgen man laster opp i er ikke låst: rundene kan dras eller flyttes opp/ned i spillbyggeren,
+  og knappen **«Stokk rekkefølgen»** blander dem én gang (lagres som ny rekkefølge).
+- Innstillingen **«Tilfeldig rekkefølge hver gang»** (`settings.shuffleRounds`, av som standard)
+  stokker rundene på nytt for hver økt. Stokkingen skjer på serveren når økten opprettes og lagres
+  i øktens `roundIds`, så alle spillerne får nøyaktig samme rekkefølge.
+
+### 8. Justerbart poengoppsett
+
+- Nytt kartområde **«Landsdel»** (`perfectKm` 0,5, `kKm` 30) mellom By og Norge, for spill der alle
+  bildene er fra én region. Bom på 10 km gir 3 643, 25 km gir 2 210 og 50 km gir 960 poeng.
+- Verten velger hvor strengt årstallet teller: **Snill / Normal / Streng** (`kYear` 8 / 4 / 2,
+  Normal er standard). Med Streng gir 1 års bom 3 033 og 2 år 1 839 poeng.
+- Spillbyggeren viser en live tabell over hva typiske bom gir med valgt oppsett.
+- Anbefalt for spill med bilder fra hele Norge og år som er lette å gjette: Kartområde **Norge**
+  og Årstall **Streng**.

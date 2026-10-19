@@ -4,8 +4,11 @@ const PORT = Number(process.env.E2E_PORT ?? 5179);
 const baseURL = `http://localhost:${PORT}`;
 
 /**
- * E2E runs against a local Convex backend (`npx convex dev --local`, see README)
- * and the SvelteKit dev server. Both are started automatically unless already running.
+ * E2E runs against a local Convex backend (`npx convex dev`, see README) and a
+ * production build of the app (`vite build` + `vite preview`), i.e. what users
+ * actually get. The dev server is avoided on purpose: when it discovers a new
+ * dependency it reloads the page mid-test. Both servers are started
+ * automatically unless already running (set E2E_PORT to use another port).
  */
 export default defineConfig({
 	testDir: 'tests/e2e',
@@ -30,10 +33,10 @@ export default defineConfig({
 			stdout: 'ignore'
 		},
 		{
-			command: `npx vite dev --port ${PORT} --strictPort`,
+			command: `npm run build && npx vite preview --port ${PORT} --strictPort`,
 			url: baseURL,
-			reuseExistingServer: true,
-			timeout: 120_000
+			reuseExistingServer: !process.env.CI,
+			timeout: 240_000
 		}
 	]
 });
