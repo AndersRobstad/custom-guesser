@@ -2,7 +2,6 @@
 
 Et sanntids flerspillerspill i stil med Kahoot × TimeGuessr. Verten laster opp egne bilder (eller
 korte videoer) med fasit – år og sted – og vennene gjetter fra mobilen: nål på kartet og årstall.
-Første spill: «Hvor og når er Anders».
 
 - **Frontend:** SvelteKit 2 + Svelte 5 (runes), TypeScript strict, Tailwind v4
 - **Sanntid og database:** Convex (`convex-svelte`), funksjoner i `src/convex/`
