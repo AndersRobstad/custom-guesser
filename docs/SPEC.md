@@ -1,4 +1,4 @@
-# Spesifikasjon: «Hvor og når er Anders» (Glimt)
+# Spesifikasjon: Glimt
 
 Dette er den opprinnelige oppgavebeskrivelsen, med tilleggene vi har avtalt underveis samlet i
 [Tillegg](#tillegg-avtalt-underveis) nederst. Der tilleggene sier noe annet enn
@@ -7,8 +7,7 @@ grunnspesifikasjonen, gjelder tilleggene.
 ## Mål og konsept
 
 Bygg en Kahoot-lignende, sanntids flerspillerversjon av TimeGuessr der verten laster opp egne
-bilder og setter fasit (år + sted), og venner gjetter fra mobilen via en spillkode. Første spill
-heter «Hvor og når er Anders», men appen skal være generell.
+bilder og setter fasit (år + sted), og venner gjetter fra mobilen via en spillkode.
 
 - Ingen innlogging. Hver nettleser får en anonym `clientId` (UUID i `localStorage`). Spillere
   skriver bare et navn når de joiner.
