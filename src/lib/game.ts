@@ -56,7 +56,7 @@ export interface GameSettings {
 	yearMax: number;
 	scoring: ScoringSettings;
 	hostPlays: boolean;
-	/** Shuffle the rounds for every new session (see `settingsValidator`). */
+	/** Shuffle the rounds for every new session; the order is fixed per session, so all players share it. */
 	shuffleRounds?: boolean;
 }
 
@@ -72,8 +72,19 @@ export function defaultSettings(currentYear: number): GameSettings {
 		yearMin: DEFAULT_YEAR_MIN,
 		yearMax: currentYear,
 		scoring: defaultScoring(),
-		hostPlays: false
+		hostPlays: false,
+		shuffleRounds: false
 	};
+}
+
+/** Fisher–Yates shuffle into a new array; `random` is injectable for deterministic tests. */
+export function shuffled<T>(items: readonly T[], random: () => number = Math.random): T[] {
+	const out = [...items];
+	for (let i = out.length - 1; i > 0; i--) {
+		const j = Math.floor(random() * (i + 1));
+		[out[i], out[j]] = [out[j], out[i]];
+	}
+	return out;
 }
 
 /** Upper-case and strip whitespace/dashes so "ab c-123" matches "ABC123". */

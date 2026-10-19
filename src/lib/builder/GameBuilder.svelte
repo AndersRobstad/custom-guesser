@@ -3,12 +3,13 @@
 	import { resolve } from '$app/paths';
 	import ImagePlus from '@lucide/svelte/icons/image-plus';
 	import Play from '@lucide/svelte/icons/play';
+	import Shuffle from '@lucide/svelte/icons/shuffle';
 	import type { OptimisticLocalStore } from 'convex/browser';
 	import { useConvexClient } from 'convex-svelte';
 	import { onDestroy, tick } from 'svelte';
 	import { errorMessage } from '$lib/client/errors';
 	import { uploadToConvex } from '$lib/client/image';
-	import type { GameSettings } from '$lib/game';
+	import { shuffled, type GameSettings } from '$lib/game';
 	import { Button, Dialog, Panel, toast } from '$lib/ui';
 	import { api } from '../../convex/_generated/api';
 	import type { Id } from '../../convex/_generated/dataModel';
@@ -226,6 +227,17 @@
 		);
 	}
 
+	/** Shuffles the saved order once (persisted like a manual reorder). */
+	function shuffleOrder() {
+		const ids = rounds.map((r) => r._id);
+		let next = shuffled(ids);
+		// With 2+ rounds, make sure something visibly changes.
+		for (let i = 0; i < 5 && next.every((id, index) => id === ids[index]); i++)
+			next = shuffled(ids);
+		reorder(next);
+		toast.success('Rekkefølgen er stokket');
+	}
+
 	// ---------------------------------------------------------------------------
 	// Editing and deleting saved rounds
 	// ---------------------------------------------------------------------------
@@ -381,16 +393,25 @@
 							{#if rounds.length === 0}
 								Hvert bilde eller videoklipp blir én runde.
 							{:else}
-								{countLabel(rounds.length, 'runde', 'runder')} i spillet. Dra for å endre rekkefølgen.
+								{countLabel(rounds.length, 'runde', 'runder')} i spillet. Dra for å endre rekkefølgen,
+								eller stokk dem.
 							{/if}
 						</p>
 					</div>
-					{#if rounds.length > 0 || drafts.length > 0}
-						<Button variant="secondary" onclick={() => dropInput?.click()}>
-							<ImagePlus class="size-5" aria-hidden="true" />
-							Legg til bilder
-						</Button>
-					{/if}
+					<div class="flex flex-wrap gap-2">
+						{#if rounds.length > 1}
+							<Button variant="outline" onclick={shuffleOrder} data-testid="shuffle-rounds">
+								<Shuffle class="size-5" aria-hidden="true" />
+								Stokk rekkefølgen
+							</Button>
+						{/if}
+						{#if rounds.length > 0 || drafts.length > 0}
+							<Button variant="secondary" onclick={() => dropInput?.click()}>
+								<ImagePlus class="size-5" aria-hidden="true" />
+								Legg til bilder
+							</Button>
+						{/if}
+					</div>
 				</div>
 
 				{#if rounds.length > 0}

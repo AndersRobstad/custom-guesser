@@ -8,7 +8,7 @@ export const EARTH_RADIUS_KM = 6371;
 export const MAX_SCORE = 5000;
 export const DEFAULT_K_YEAR = 4;
 
-export type PresetKey = 'city' | 'norway' | 'europe' | 'world';
+export type PresetKey = 'city' | 'region' | 'norway' | 'europe' | 'world';
 
 export interface LocationScoring {
 	/** Distance (km) that still counts as a perfect hit. */
@@ -36,6 +36,13 @@ export const PRESETS: Record<PresetKey, Preset> = {
 		perfectKm: 0.05,
 		kKm: 3
 	},
+	region: {
+		key: 'region',
+		label: 'Landsdel',
+		description: 'Bildene er fra én landsdel eller region',
+		perfectKm: 0.5,
+		kKm: 30
+	},
 	norway: {
 		key: 'norway',
 		label: 'Norge',
@@ -60,6 +67,39 @@ export const PRESETS: Record<PresetKey, Preset> = {
 };
 
 export const DEFAULT_PRESET: PresetKey = 'europe';
+
+export type YearStrictness = 'lenient' | 'normal' | 'strict';
+
+/** How hard a wrong year is punished. Stored as `kYear` in the game's scoring settings. */
+export const YEAR_STRICTNESS: Record<
+	YearStrictness,
+	{ key: YearStrictness; label: string; description: string; kYear: number }
+> = {
+	lenient: {
+		key: 'lenient',
+		label: 'Snill',
+		description: 'Et par år feil koster lite',
+		kYear: 8
+	},
+	normal: {
+		key: 'normal',
+		label: 'Normal',
+		description: 'Hvert år feil koster merkbart',
+		kYear: DEFAULT_K_YEAR
+	},
+	strict: {
+		key: 'strict',
+		label: 'Streng',
+		description: 'Bare riktig år gir fulle poeng – bom koster mye',
+		kYear: 2
+	}
+};
+
+/** The named strictness for a `kYear`, or null for a custom value. */
+export function yearStrictnessFor(kYear: number): YearStrictness | null {
+	const match = Object.values(YEAR_STRICTNESS).find((s) => s.kYear === kYear);
+	return match?.key ?? null;
+}
 
 export function presetScoring(key: PresetKey, kYear = DEFAULT_K_YEAR): ScoringParams {
 	const { perfectKm, kKm } = PRESETS[key];

@@ -3,6 +3,7 @@ import { v } from 'convex/values';
 export const scoringValidator = v.object({
 	preset: v.union(
 		v.literal('city'),
+		v.literal('region'),
 		v.literal('norway'),
 		v.literal('europe'),
 		v.literal('world'),
@@ -19,10 +20,7 @@ export const settingsValidator = v.object({
 	yearMax: v.number(),
 	scoring: scoringValidator,
 	hostPlays: v.boolean(),
-	/**
-	 * Shuffle the rounds for every new session. Not used yet, but production
-	 * already has games and sessions with it, so the schema must accept it.
-	 */
+	/** Shuffle the rounds for every new session (all players share that session's order). */
 	shuffleRounds: v.optional(v.boolean())
 });
 

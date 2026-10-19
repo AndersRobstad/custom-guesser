@@ -39,18 +39,18 @@ lagring).
 
 ## Skript
 
-| Kommando              | Hva den gjør                                                                       |
-| --------------------- | ---------------------------------------------------------------------------------- |
-| `npm run dev`         | Utviklingsserver                                                                   |
-| `npm run build`       | Produksjonsbygg                                                                    |
-| `npm test`            | Alle Vitest-tester (enhet + `convex-test`)                                         |
-| `npm run test:unit`   | Bare poengberegningen (`src/lib/scoring.test.ts`)                                  |
-| `npm run test:convex` | Bare backend-testene (`src/convex/game.test.ts`)                                   |
-| `npm run test:e2e`    | Playwright mot lokal Convex. Starter `convex dev` og Vite selv hvis de ikke kjører |
-| `npm run check`       | `svelte-check`                                                                     |
-| `npm run typecheck`   | `tsc --noEmit`                                                                     |
-| `npm run lint`        | Prettier + ESLint                                                                  |
-| `npm run fixtures`    | Lager testbildene i `tests/fixtures/` på nytt                                      |
+| Kommando              | Hva den gjør                                                                                                              |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `npm run dev`         | Utviklingsserver                                                                                                          |
+| `npm run build`       | Produksjonsbygg                                                                                                           |
+| `npm test`            | Alle Vitest-tester (enhet + `convex-test`)                                                                                |
+| `npm run test:unit`   | Bare poengberegningen (`src/lib/scoring.test.ts`)                                                                         |
+| `npm run test:convex` | Bare backend-testene (`src/convex/game.test.ts`)                                                                          |
+| `npm run test:e2e`    | Playwright mot lokal Convex og et produksjonsbygg (`vite build` + `vite preview`). Starter begge selv hvis de ikke kjører |
+| `npm run check`       | `svelte-check`                                                                                                            |
+| `npm run typecheck`   | `tsc --noEmit`                                                                                                            |
+| `npm run lint`        | Prettier + ESLint                                                                                                         |
+| `npm run fixtures`    | Lager testbildene i `tests/fixtures/` på nytt                                                                             |
 
 Første gang du kjører E2E: `npx playwright install --with-deps chromium`. E2E-testen mocker
 kartfliser og stedssøk, så den trenger ikke nett. Skjermbilder fra kjøringen havner i
@@ -88,21 +88,29 @@ gir opptil 5 000 poeng for sted og 5 000 for år:
 - **Sted:** 5 000 innenfor `perfectKm`, deretter `5000 · e^(−(d − perfectKm) / kKm)`.
 - **År:** `5000 · e^(−Δår / kYear)`.
 
-Verten velger «Kartområde» i spillbyggeren. Valget lagres per spill i `settings.scoring`:
+Verten velger «Kartområde» og «Årstall» i spillbyggeren, og ser en tabell over hva typiske bom gir
+før spillet startes. Valgene lagres per spill i `settings.scoring`:
 
-| Oppsett           | `perfectKm` | `kKm` | Passer når …                 |
-| ----------------- | ----------- | ----- | ---------------------------- |
-| By                | 0,05        | 3     | alle bildene er fra samme by |
-| Norge             | 1           | 100   | bildene er spredt i Norge    |
-| Europa (standard) | 5           | 500   | bildene er fra hele Europa   |
-| Verden            | 25          | 2 000 | bildene er fra hele verden   |
+| Kartområde        | `perfectKm` | `kKm` | Passer når …                            |
+| ----------------- | ----------- | ----- | --------------------------------------- |
+| By                | 0,05        | 3     | alle bildene er fra samme by            |
+| Landsdel          | 0,5         | 30    | bildene er fra én landsdel eller region |
+| Norge             | 1           | 100   | bildene er spredt i Norge               |
+| Europa (standard) | 5           | 500   | bildene er fra hele Europa              |
+| Verden            | 25          | 2 000 | bildene er fra hele verden              |
+
+| Årstall           | `kYear` | 1 år feil | 2 år feil | 5 år feil |
+| ----------------- | ------- | --------- | --------- | --------- |
+| Snill             | 8       | 4 412     | 3 894     | 2 676     |
+| Normal (standard) | 4       | 3 894     | 3 033     | 1 433     |
+| Streng            | 2       | 3 033     | 1 839     | 410       |
 
 Slik endrer du oppsettene:
 
 - **Endre eller legge til et oppsett:** rediger `PRESETS` i `src/lib/scoring.ts`. Oppdater
   tabelltestene i `src/lib/scoring.test.ts` slik at de matcher de nye verdiene.
-- **Gjøre årspoengene strengere eller snillere:** endre `DEFAULT_K_YEAR` (standard 4). Lavere
-  tall straffer bom hardere: med 4 gir 1 års bom 3 894 poeng, med 2 gir den 3 033.
+- **Endre årstall-nivåene:** rediger `YEAR_STRICTNESS` i `src/lib/scoring.ts`. Lavere `kYear`
+  straffer bom hardere.
 - **Bruke egne verdier for ett spill:** `settings.scoring` godtar `preset: 'custom'` med egne
   `perfectKm`, `kKm` og `kYear` via `games.update`.
 

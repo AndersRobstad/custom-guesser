@@ -4,11 +4,13 @@ import {
 	DEFAULT_K_YEAR,
 	MAX_SCORE,
 	PRESETS,
+	YEAR_STRICTNESS,
 	haversineKm,
 	locationScore,
 	presetScoring,
 	scoreGuess,
 	yearScore,
+	yearStrictnessFor,
 	type PresetKey
 } from './scoring';
 
@@ -104,6 +106,8 @@ describe('preset table from the spec', () => {
 	const table: Record<PresetKey, { perfectKm: number; kKm: number; at50: number; at500: number }> =
 		{
 			city: { perfectKm: 0.05, kKm: 3, at50: 0, at500: 0 },
+			// Added after the spec (between By and Norge): one region of the country.
+			region: { perfectKm: 0.5, kKm: 30, at50: 960, at500: 0 },
 			norway: { perfectKm: 1, kKm: 100, at50: 3063, at500: 34 },
 			europe: { perfectKm: 5, kKm: 500, at50: 4570, at500: 1858 },
 			world: { perfectKm: 25, kKm: 2000, at50: 4938, at500: 3943 }
@@ -156,6 +160,36 @@ describe('yearScore', () => {
 				}
 			)
 		);
+	});
+});
+
+describe('year strictness levels', () => {
+	it('maps Snill/Normal/Streng to kYear 8/4/2 with the expected penalties', () => {
+		expect(YEAR_STRICTNESS.lenient.kYear).toBe(8);
+		expect(YEAR_STRICTNESS.normal.kYear).toBe(DEFAULT_K_YEAR);
+		expect(YEAR_STRICTNESS.strict.kYear).toBe(2);
+		expect(yearScore(1, YEAR_STRICTNESS.lenient)).toBe(4412);
+		expect(yearScore(1, YEAR_STRICTNESS.strict)).toBe(3033);
+		expect(yearScore(2, YEAR_STRICTNESS.strict)).toBe(1839);
+		expect(yearScore(5, YEAR_STRICTNESS.strict)).toBe(410);
+	});
+
+	it('recognises the named levels and treats other values as custom', () => {
+		expect(yearStrictnessFor(2)).toBe('strict');
+		expect(yearStrictnessFor(4)).toBe('normal');
+		expect(yearStrictnessFor(8)).toBe('lenient');
+		expect(yearStrictnessFor(3)).toBeNull();
+	});
+});
+
+describe('Landsdel preset', () => {
+	it('sits between By and Norge', () => {
+		const region = presetScoring('region');
+		expect(locationScore(10, region)).toBe(3643);
+		expect(locationScore(25, region)).toBe(2210);
+		expect(locationScore(100, region)).toBe(181);
+		expect(locationScore(10, region)).toBeLessThan(locationScore(10, presetScoring('norway')));
+		expect(locationScore(10, region)).toBeGreaterThan(locationScore(10, presetScoring('city')));
 	});
 });
 

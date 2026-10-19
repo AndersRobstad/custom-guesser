@@ -74,22 +74,38 @@ test('a video round autoplays on the TV and loads on demand on the phone', async
 
 	await host.getByTestId('start-game').click();
 
-	// TV: the clip plays straight away, muted and looping.
+	// TV: the clip plays straight away and loops; the host can switch sound on and off.
 	const tvMedia = host.getByTestId('round-media');
 	await expect(tvMedia).toHaveAttribute('data-media-type', 'video');
 	const tvVideo = tvMedia.locator('video');
 	await expect(tvVideo).toHaveAttribute('src', /.+/);
 	await expect
-		.poll(() => tvVideo.evaluate((v: HTMLVideoElement) => !v.paused && v.muted && v.loop))
+		.poll(() => tvVideo.evaluate((v: HTMLVideoElement) => !v.paused && v.loop))
 		.toBe(true);
+	const tvMuted = () => tvVideo.evaluate((v: HTMLVideoElement) => v.muted);
+	const mutedBefore = await tvMuted();
+	await host.getByTestId('video-sound').click();
+	await expect.poll(tvMuted).toBe(!mutedBefore);
+	await host.getByTestId('video-sound').click();
+	await expect.poll(tvMuted).toBe(mutedBefore);
 
-	// Phone: only the poster frame until the player asks for the clip.
+	// Phone: only the poster frame until the player asks for the clip; nothing is
+	// downloaded before the tap, and the tap starts it with sound.
 	const phoneMedia = phone.getByTestId('round-media');
 	await expect(phoneMedia).toHaveAttribute('data-media-type', 'video');
-	await expect(phoneMedia.locator('video')).toHaveCount(0);
-	await expect(phoneMedia.locator('img')).toHaveAttribute('src', /.+/);
+	const phoneVideo = phoneMedia.locator('video');
+	await expect(phoneVideo).toHaveAttribute('preload', 'none');
+	await expect(phoneVideo).toHaveAttribute('poster', /.+/);
+	const clipUrl = (await phoneVideo.getAttribute('src'))!;
+	const clipRequests: string[] = [];
+	phone.on('request', (req) => req.url() === clipUrl && clipRequests.push(req.url()));
+	await phone.waitForTimeout(500);
+	expect(clipRequests).toEqual([]);
 	await phone.getByTestId('play-video').click();
-	await expect(phoneMedia.locator('video')).toBeVisible();
+	await expect
+		.poll(() => phoneVideo.evaluate((v: HTMLVideoElement) => !v.paused && !v.muted))
+		.toBe(true);
+	expect(clipRequests.length).toBeGreaterThan(0);
 
 	// The round still plays like any other.
 	await expect(phone.getByTestId('guess-map')).toHaveAttribute('data-map-ready', 'true');
